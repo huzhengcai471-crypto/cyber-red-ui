@@ -41,7 +41,7 @@ dsh plugin --profile desktop add github:huzhengcai471-crypto/cyber-red-ui
 ### 方式二：从本地 tarball 安装
 
 ```powershell
-dsh plugin --profile desktop add file:C:/path/to/dsh-cyber-red-ui-1.0.0.tgz
+dsh plugin --profile desktop add file:C:/path/to/dsh-cyber-red-ui-1.1.0.tgz
 ```
 
 ### 方式三：开发模式（链接源码）

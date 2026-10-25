@@ -76,6 +76,16 @@ window.__ModuleLoader__.load({
        override alone cannot reach the outermost surface. This layer gives
        the canvas its black-to-crimson vignette, scanlines and hairline
        border, plus neon treatment for controls the tokens do not reach. */
+    const SETTINGS_ROOT_SELECTOR = '[data-shortcut-modal="settings"], [data-cr-settings-surface], ' +
+      '[data-slot="settings.section"], [data-cr-settings-self]';
+    const SETTINGS_PALETTE = `
+        --dsw-alias-border-l1: #ffffff0f;
+        --dsw-alias-border-l2: #ffffff1f;
+        --dsw-alias-border-l3: #ffffff29;
+        --dsw-alias-brand-primary: #8fb8de;
+    `;
+    const SETTINGS_CSS = `${SETTINGS_ROOT_SELECTOR} { ${SETTINGS_PALETTE} }`;
+
     const SHELL_CSS = `
       :root {
         /* Lifted palette: a vivid crimson reads clearly on the near-black
@@ -970,10 +980,8 @@ window.__ModuleLoader__.load({
         text-shadow: 0 0 8px rgba(255, 224, 138, 0.55) !important;
       }
 
-      /* The settings surface and the plugin market are not this plugin's to
-         repaint. The rule that overrode --dsw-alias-brand-primary under
-         html[data-cr-settings-open] is gone, along with the marker that
-         scoped it: both reached into host and sibling-plugin pages. */
+      /* Restore neutral control boundaries only inside the settings surface. */
+      ${SETTINGS_CSS}
 `;
 
     /* Frame-wide decoration: click-through by default; only the ornament
@@ -1461,6 +1469,7 @@ window.__ModuleLoader__.load({
     /* Startup state now comes from that preference, not from the last manual
        toggle, so the switch actually decides what a fresh launch shows. */
     let railOpen = railDefaultOpen;
+    let closeNativeRightbarForRail = function () {};
     const railListeners = new Set();
     const emitRail = () => {
       for (const fn of railListeners) fn();
@@ -1603,6 +1612,7 @@ window.__ModuleLoader__.load({
     const setRailOpen = (next) => {
       const value = Boolean(next);
       if (railOpen === value) return;
+      if (value) closeNativeRightbarForRail();
       railOpen = value;
       try { window.localStorage.setItem('cr-rail-open', value ? '1' : '0'); } catch (e) { /* storage unavailable */ }
       applyRailWidth();
@@ -1688,6 +1698,58 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /* Keep the player's styles mounted independently of the lab rail. */
+    const MUSIC_PLAYER_CSS = `
+      .cr-music-player {
+        flex: none;
+        width: 100%;
+        max-width: 100%;
+        height: 57px;
+        min-height: 57px;
+        box-sizing: border-box;
+        display: grid;
+        gap: 5px;
+        padding: 6px 8px 7px;
+        margin: 0 0 7px;
+        background: linear-gradient(180deg, rgba(58, 8, 12, .88), rgba(13, 13, 13, .96));
+        border: 1px solid rgba(139, 0, 0, .72);
+        box-shadow: inset 0 0 12px rgba(139, 0, 0, .2), 0 0 10px rgba(139, 0, 0, .16);
+        color: #fff;
+        overflow: hidden;
+      }
+      .cr-music-player__title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #ffb6bd;
+        font-size: 10px;
+        letter-spacing: .03em;
+      }
+      .cr-music-player__controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 5px;
+      }
+      .cr-music-player__button {
+        min-width: 0;
+        height: 25px;
+        padding: 0;
+        border: 1px solid rgba(255, 68, 76, .72);
+        background: rgba(139, 0, 0, .32);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .cr-music-player__button:hover,
+      .cr-music-player__button:focus-visible {
+        background: rgba(218, 18, 28, .64);
+        box-shadow: 0 0 8px rgba(255, 48, 48, .48);
+      }
+      .cr-music-player audio { display: none; }
+    `;
+
     function MusicPlayer() {
       const visible = useMusicState();
       const tracks = MUSIC_TRACKS.filter(function (track) { return musicTrackEnabled(track.id); });
@@ -1766,17 +1828,20 @@ window.__ModuleLoader__.load({
         setIndex(function (value) { return (value + 1) % tracks.length; });
         setPlaying(true);
       };
-      return h('div', {
-        className: 'cr-music-player',
-        'aria-label': '音乐播放器',
-      },
-        h('div', { className: 'cr-music-player__title' }, current ? current.label : '未启用音乐'),
-        h('div', { className: 'cr-music-player__controls' },
-          h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': '上一首', onClick: previous }, '◀'),
-          h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': playing ? '暂停' : '播放', onClick: toggle }, playing ? '❚❚' : '▶'),
-          h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': '下一首', onClick: next }, '▶'),
-        ),
-        h('audio', { ref: audioRef, preload: 'auto' })
+      return h(React.Fragment, null,
+        h(StyleTag, { css: MUSIC_PLAYER_CSS }),
+        h('div', {
+          className: 'cr-music-player',
+          'aria-label': '音乐播放器',
+        },
+          h('div', { className: 'cr-music-player__title' }, current ? current.label : '未启用音乐'),
+          h('div', { className: 'cr-music-player__controls' },
+            h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': '上一首', onClick: previous }, '◀'),
+            h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': playing ? '暂停' : '播放', onClick: toggle }, playing ? '❚❚' : '▶'),
+            h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': '下一首', onClick: next }, '▶'),
+          ),
+          h('audio', { ref: audioRef, preload: 'auto' })
+        )
       );
     }
 
@@ -2881,54 +2946,6 @@ window.__ModuleLoader__.load({
       @media (prefers-reduced-motion: reduce) {
         .cr-code__window { animation: none; }
       }
-      .cr-music-player {
-        flex: none;
-        width: 100%;
-        max-width: 100%;
-        height: 57px;
-        min-height: 57px;
-        box-sizing: border-box;
-        display: grid;
-        gap: 5px;
-        padding: 6px 8px 7px;
-        margin: 0 0 7px;
-        background: linear-gradient(180deg, rgba(58, 8, 12, .88), rgba(13, 13, 13, .96));
-        border: 1px solid rgba(139, 0, 0, .72);
-        box-shadow: inset 0 0 12px rgba(139, 0, 0, .2), 0 0 10px rgba(139, 0, 0, .16);
-        color: #fff;
-        overflow: hidden;
-      }
-      .cr-music-player__title {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: #ffb6bd;
-        font-size: 10px;
-        letter-spacing: .03em;
-      }
-      .cr-music-player__controls {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 5px;
-      }
-      .cr-music-player__button {
-        min-width: 0;
-        height: 25px;
-        padding: 0;
-        border: 1px solid rgba(255, 68, 76, .72);
-        background: rgba(139, 0, 0, .32);
-        color: #fff;
-        font-size: 12px;
-        line-height: 1;
-        cursor: pointer;
-      }
-      .cr-music-player__button:hover,
-      .cr-music-player__button:focus-visible {
-        background: rgba(218, 18, 28, .64);
-        box-shadow: 0 0 8px rgba(255, 48, 48, .48);
-      }
-      .cr-music-player audio { display: none; }
     `;
 
     /* The portrait is inlined as a data URI so the rail needs no extra asset
@@ -3922,6 +3939,85 @@ window.__ModuleLoader__.load({
 
        The state is persisted so it survives a reload. */
     let planEnabled = true;
+    const PLAN_APPEARANCE_KEY = 'cr-plan-original-appearance';
+    const PLAN_APPEARANCES = ['light', 'dark', 'system'];
+    let syncPlanAppearance = function () {};
+    const createPlanAppearanceController = function (theme, appearanceForm) {
+      let original = null;
+      const readStored = function () {
+        try {
+          const saved = window.localStorage.getItem(PLAN_APPEARANCE_KEY);
+          return PLAN_APPEARANCES.indexOf(saved) >= 0 ? saved : null;
+        } catch (e) { return null; }
+      };
+      const sync = function () {
+        const settings = appearanceForm.getSnapshot();
+        if (!settings || settings.status !== 'ready') return;
+        if (planEnabled) {
+          if (original === null) {
+            original = readStored();
+            if (original === null && PLAN_APPEARANCES.indexOf(settings.value && settings.value.preference) >= 0) {
+              original = settings.value.preference;
+              try { window.localStorage.setItem(PLAN_APPEARANCE_KEY, original); } catch (e) { /* in-memory restore still works */ }
+            }
+          }
+          if (theme.getTheme().preference !== 'dark') theme.setTheme('dark');
+          return;
+        }
+
+        if (original === null) original = readStored();
+        const restore = original;
+        original = null;
+        try { window.localStorage.removeItem(PLAN_APPEARANCE_KEY); } catch (e) { /* storage unavailable */ }
+        if (restore && restore !== 'dark' && theme.getTheme().preference === 'dark') {
+          theme.setTheme(restore);
+        }
+      };
+      return {
+        sync,
+        enforce: function (snapshot) {
+          if (!planEnabled || snapshot.preference === 'dark') return;
+          if (original !== null) theme.setTheme('dark');
+          else sync();
+        },
+      };
+    };
+    const createRightbarMutualExclusion = function (setLabOpen, isLabOpen, closeRightbar) {
+      const isRightbarOpen = function () {
+        return Array.from(document.querySelectorAll('[data-sidebar-right-session][data-sidebar-right-open]')).some(function (panel) {
+          return !panel.closest('[hidden]') && !panel.closest('[aria-hidden="true"]');
+        });
+      };
+      let disposed = false;
+      const sync = function () {
+        if (!disposed && isRightbarOpen() && isLabOpen()) setLabOpen(false);
+      };
+      const observer = new MutationObserver(sync);
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['data-sidebar-right-open', 'aria-hidden', 'hidden'],
+        childList: true,
+        subtree: true,
+      });
+      if (isLabOpen()) closeRightbar();
+      else sync();
+      return function () {
+        disposed = true;
+        observer.disconnect();
+      };
+    };
+    const closeOpenRightbar = function (layout) {
+      const panels = Array.from(document.querySelectorAll('[data-sidebar-right-session][data-sidebar-right-open]'));
+      for (const panel of panels) {
+        if (panel.closest('[hidden]') || panel.closest('[aria-hidden="true"]')) continue;
+        const toggle = panel.querySelector('[data-sidebar-right-toggle]');
+        if (toggle) {
+          toggle.click();
+          return;
+        }
+      }
+      if (layout && typeof layout.closeRightbar === 'function') layout.closeRightbar();
+    };
     const planListeners = new Set();
     const emitPlan = function () {
       for (const fn of planListeners) fn();
@@ -3998,8 +4094,9 @@ window.__ModuleLoader__.load({
        of a hard-coded string that can drift from it. */
     const HERO_BRAND_DEFAULT = '\u4f1f\u5927\u667a\u80fd\u7edf\u8f96';
     let heroBrandText = HERO_BRAND_DEFAULT;
-    /* The shell's own headline, captured on the first sighting of the mark. */
+    /* Keep the shell copy per element so a host re-render cannot lose it. */
     let heroBrandOriginal = null;
+    const heroBrandOriginals = new Map();
     const heroBrandListeners = new Set();
     const syncHeroBrandElements = function () {
       const value = heroBrandText || HERO_BRAND_DEFAULT;
@@ -4009,11 +4106,18 @@ window.__ModuleLoader__.load({
     };
     /* Put the shell's headline back. Called when the plan is withdrawn. */
     const restoreHeroBrandElements = function () {
-      const original = heroBrandOriginal;
-      if (original === null) return;
-      for (const el of document.querySelectorAll('[data-cr-hero-title]')) {
-        if (el.textContent !== original) el.textContent = original;
+      for (const [el, original] of heroBrandOriginals) {
+        if (el.isConnected && el.textContent !== original) el.textContent = original;
       }
+      /* Recover a marker left by an earlier runtime instance when possible. */
+      const original = heroBrandOriginal;
+      for (const el of document.querySelectorAll('[data-cr-hero-title]')) {
+        if (!heroBrandOriginals.has(el) && original !== null && el.textContent !== original) {
+          el.textContent = original;
+        }
+      }
+      heroBrandOriginals.clear();
+      heroBrandOriginal = null;
     };
     const emitHeroBrand = function () {
       for (const fn of heroBrandListeners) fn();
@@ -4628,6 +4732,7 @@ window.__ModuleLoader__.load({
       } catch (e) { /* keep the default */ }
     };
     const PLAN_CSS = [
+      `.cr-plan { ${SETTINGS_PALETTE} }`,
       '.cr-plan { display: flex; flex-direction: column; }',
       /* Rows are separated by a hairline, matching the shell's own settings
          rows (first row has no top border). */
@@ -4717,7 +4822,7 @@ window.__ModuleLoader__.load({
       '.cr-plan__mark[data-checked="1"] { border-color: #8b0000;',
       '  background: rgba(139, 0, 0, 0.370);',
       '  box-shadow: 0 0 10px rgba(139, 0, 0, 0.758); }',
-      '.cr-plan__mark:focus-visible { outline: 1px solid #8b0000;',
+      '.cr-plan__mark:focus-visible { outline: 1px solid #8fb8de;',
       '  outline-offset: 2px; }',
       '.cr-plan__mark img { width: 24px; height: 24px; flex: none;',
       '  object-fit: contain; display: block; }',
@@ -4746,15 +4851,15 @@ window.__ModuleLoader__.load({
       '.cr-plan__group { gap: 5px; }',
       '.cr-plan__section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
       '.cr-plan__music-toggle { flex: none; min-width: 48px; height: 24px; padding: 0 8px;',
-      '  border: 1px solid rgba(139,0,0,.55); background: rgba(139,0,0,.18); color: #fff;',
+      '  border: 1px solid var(--dsw-alias-border-l3); background: rgba(139,0,0,.18); color: #fff;',
       '  font: inherit; font-size: 11px; cursor: pointer; }',
       '.cr-plan__music-toggle:hover, .cr-plan__music-toggle:focus-visible {',
-      '  background: rgba(139,0,0,.55); box-shadow: 0 0 8px rgba(255,48,48,.28); }',
+      '  background: rgba(139,0,0,.55); box-shadow: none; }',
       '.cr-plan__music-list { display: grid; gap: 6px; margin-top: 8px; }',
       '.cr-plan__music-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
       '.cr-plan__music-item { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12px; }',
       '.cr-plan__music-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-      '.cr-plan__music-preview { width: 28px; height: 24px; padding: 0; border: 1px solid rgba(139,0,0,.55); background: rgba(139,0,0,.18); color: #fff; cursor: pointer; }',
+      '.cr-plan__music-preview { width: 28px; height: 24px; padding: 0; border: 1px solid var(--dsw-alias-border-l3); background: rgba(139,0,0,.18); color: #fff; cursor: pointer; }',
       '.cr-plan__music-preview:hover { background: rgba(139,0,0,.55); }',
       '.cr-plan__input, .cr-plan__select { border-color: var(--dsw-alias-border-l2);',
       '  border-radius: 8px; background: rgba(54, 12, 16, 0.82); padding: 6px 10px; }',
@@ -4780,12 +4885,7 @@ window.__ModuleLoader__.load({
       '.cr-plan .cr-plan__hint { color: #75e6f5 !important; }',
       '.cr-plan .cr-plan__note { color: #2de8eb !important; }',
 
-      /* The plan's own page is styled by the rules above. Everything that
-         used to reach past it — the whole-settings-surface reset keyed on
-         html[data-cr-settings-open], and the resets for the startup-animation
-         plugin's form — is intentionally gone: a settings section is the
-         shell's surface, and this plugin does not restyle host or sibling
-         plugin pages. */
+      /* Keep native control boundaries and visible keyboard focus without glow. */
       '.cr-plan__row, .cr-plan__section { border-color: rgba(255, 255, 255, 0.10) !important;',
       '  box-shadow: none !important; }',
       '.cr-plan__input, .cr-plan__select, .cr-plan__mark, .cr-plan__toggle {',
@@ -4793,6 +4893,8 @@ window.__ModuleLoader__.load({
       '.cr-plan__input:focus, .cr-plan__select:focus, .cr-plan__mark:focus-visible,',
       '.cr-plan__mark[data-checked="1"] { border-color: rgba(255, 255, 255, 0.24) !important;',
       '  box-shadow: none !important; }',
+      '.cr-plan :is(input, select, button):focus-visible { outline: 2px solid #8fb8de;',
+      '  outline-offset: 2px; }',
     ].join('\n');
 
     function PlanSettingsPage() {
@@ -4812,10 +4914,6 @@ window.__ModuleLoader__.load({
       React.useEffect(function () {
         return function () { stopMusicPreview(); };
       }, []);
-      /* The `data-cr-settings-open` marker this used to set on <html> is gone:
-         every rule that read it reached across the whole settings surface
-         (and other plugins' settings forms), and the plan does not restyle
-         host pages. */
       const text = useBrandText();
       const hoverState = React.useState(false);
       const hover = hoverState[0];
@@ -4896,6 +4994,7 @@ window.__ModuleLoader__.load({
               onMouseLeave: function () { setHover(false); },
               onClick: function () {
                 planEnabled = !planEnabled;
+                syncPlanAppearance();
                 try {
                   window.localStorage.setItem('cr-plan-enabled', planEnabled ? '1' : '0');
                 } catch (e) { /* storage unavailable */ }
@@ -5196,8 +5295,22 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'theme'],
+      inject: ['slots', 'theme', 'configForms'],
       apply(ctx) {
+        restorePlan();
+        const appearanceForm = ctx.configForms.get('ui-theme');
+        const planAppearance = createPlanAppearanceController(ctx.theme, appearanceForm);
+        syncPlanAppearance = planAppearance.sync;
+        ctx.on('theme/change', planAppearance.enforce);
+        ctx.effect(function () {
+          const unsubscribe = appearanceForm.subscribe(syncPlanAppearance);
+          syncPlanAppearance();
+          return function () {
+            unsubscribe();
+            if (syncPlanAppearance === planAppearance.sync) syncPlanAppearance = function () {};
+          };
+        });
+
         /* Every contribution registers through these two holders so the
            master switch can withdraw them all at once and re-arm them. The
            theme layers are separate from the slots because they are created
@@ -5304,12 +5417,11 @@ window.__ModuleLoader__.load({
           }, 0);
         };
         const disarmSlots = function () {
+          /* Restore the host headline before unregistering slots can trigger
+             a shell render and replace the marked element. */
+          try { restoreHeroBrandElements(); } catch (e) { /* frame gone */ }
           for (const d of slotDisposers) { try { d(); } catch (e) { /* already gone */ } }
           slotDisposers = [];
-          /* The blank-session headline is a text node this plugin replaced, so
-             it needs its own restore: the marks alone do not put the shipped
-             copy back. */
-          try { restoreHeroBrandElements(); } catch (e) { /* frame gone */ }
         };
 
         /* Everything stamped into the live DOM by the marking pass. Removing
@@ -5322,6 +5434,8 @@ window.__ModuleLoader__.load({
           'data-cr-brand', 'data-cr-brand-box',
           'data-cr-row', 'data-cr-selected', 'data-cr-hot',
           'data-cr-spin', 'data-cr-wsicon',
+          'data-cr-section', 'data-cr-time',
+          'data-cr-effort-high', 'data-cr-effort-max', 'data-cr-effort-off',
           'data-cr-nav', 'data-cr-newsession', 'data-cr-sidebar-copy', 'data-cr-rail-body',
           'data-cr-frame', 'data-cr-brand-name',
           'data-cr-hero-title', 'data-cr-hero-badge',
@@ -5332,6 +5446,7 @@ window.__ModuleLoader__.load({
         ];
         const clearRuntimeMarks = function () {
           const root = document.documentElement;
+          restoreHeroBrandElements();
           /* Restore the frame grid to the shell's own value. */
           root.removeAttribute('data-cr-rail-open');
           root.removeAttribute('data-cr-stats-capturing');
@@ -5354,21 +5469,18 @@ window.__ModuleLoader__.load({
                had no track list at all. */
           }
           for (const el of document.querySelectorAll('[' + RUNTIME_ATTRS.join('], [') + ']')) {
-            if (el.hasAttribute('data-cr-hero-title')) {
-              /* The hero headline is restored from the shell's own captured
-                 copy, not a hard-coded string — see restoreHeroBrandElements. */
-              const original = heroBrandOriginal;
-              if (original !== null && el.textContent !== original) el.textContent = original;
-            }
             for (const attr of RUNTIME_ATTRS) el.removeAttribute(attr);
             /* Strip the per-element stripe offsets too. */
             el.style.removeProperty('--cr-edge-top');
+          }
+          for (const el of document.querySelectorAll('[data-cr-settings-surface]')) {
+            el.removeAttribute('data-cr-settings-surface');
           }
         };
 
         /* Master switch and brand-name preferences are read once at load so a
            reload keeps the user's choices. */
-        restorePlan();
+        syncPlanAppearance();
         restoreBrandText();
         restoreHeroBrandText();
         restoreBrandMarkVariant();
@@ -5433,6 +5545,12 @@ window.__ModuleLoader__.load({
                stayed open or the user touches the shell's own toggle. */
         /* Rail visibility captured when the gate disarms, restored on re-arm. */
         let railOpenBeforeGate = null;
+        const restoreRailAfterGate = function () {
+          if (railOpenBeforeGate === null) return;
+          const shouldOpen = railOpenBeforeGate;
+          railOpenBeforeGate = null;
+          setRailOpen(shouldOpen);
+        };
 
         /* Budget for the whole startup pass. Generous on purpose: the frame
            can mount late, and finish() may arrive after a long sequence. */
@@ -5490,6 +5608,17 @@ window.__ModuleLoader__.load({
             if (scope && scope.layout && typeof scope.layout.toggleSidebar === 'function') return scope.layout;
           } catch (e) { /* future API shape */ }
           return null;
+        };
+        closeNativeRightbarForRail = function () {
+          const layout = layoutOf(ctx);
+          closeOpenRightbar(layout);
+        };
+        const makeRightbarMutualExclusion = function () {
+          return createRightbarMutualExclusion(
+            setRailOpen,
+            function () { return railOpen; },
+            closeNativeRightbarForRail
+          );
         };
 
         /* Watcher state. It deliberately outlives gate re-arms: lastToggleAt
@@ -5757,12 +5886,7 @@ window.__ModuleLoader__.load({
             if (runtimeDisposers.length === 0) armRuntime();
             /* Put the rail back the way it was before the gate cleared it, so a
                startup splash cannot leave it closed for the rest of the session. */
-            if (railOpenBeforeGate !== null) {
-              railOpen = railOpenBeforeGate;
-              railOpenBeforeGate = null;
-              try { applyRailWidth(); } catch (e) { /* frame gone */ }
-              emitRail();
-            }
+            restoreRailAfterGate();
             /* The startup sidebar pass runs on every arming: the gate can arm,
                disarm and re-arm around a splash, and the watcher re-checks the
                live marker each time, so a re-arm can only ever find and open a
@@ -5794,6 +5918,8 @@ window.__ModuleLoader__.load({
             document.removeEventListener('pointerdown', onSidebarPointerDown, true);
             document.removeEventListener('click', onSidebarClick, true);
             document.removeEventListener('keydown', onSidebarKeyDown, true);
+            closeNativeRightbarForRail = function () {};
+            syncPlanAppearance = function () {};
           };
         });
 
@@ -5973,6 +6099,7 @@ window.__ModuleLoader__.load({
           const made = [
             makeCaptionNudge(),
             makeShellStylesheet(),
+            makeRightbarMutualExclusion(),
             makeChatVideoLayer(),
             makeCopyRewrite(),
             makeMarkingPass(),
@@ -6048,6 +6175,7 @@ window.__ModuleLoader__.load({
 
           const rewriteText = (node, table) => {
             if (node.nodeType !== 3) return;
+            if (isSettingsSurface(node.parentElement)) return;
             const original = node.nodeValue;
             if (!original) return;
             const trimmed = original.trim();
@@ -6071,6 +6199,7 @@ window.__ModuleLoader__.load({
           const rewriteAttributes = (root, table) => {
             const nodes = root.querySelectorAll('[aria-label], [title]');
             for (const el of nodes) {
+              if (isSettingsSurface(el)) continue;
               for (const attr of ['aria-label', 'title']) {
                 const value = el.getAttribute(attr);
                 if (!value) continue;
@@ -6090,6 +6219,7 @@ window.__ModuleLoader__.load({
           };
 
           const retitle = () => {
+            syncSettingsSurfaces();
             /* Scoped renames first. */
             const roots = document.querySelectorAll(ROOT_SELECTOR);
             for (const root of roots) {
@@ -6118,6 +6248,7 @@ window.__ModuleLoader__.load({
                original string is remembered, exactly as in rewriteText, so
                withdrawing the plan puts the shell's wording back. */
             for (const row of document.querySelectorAll('[data-chat-running]')) {
+              if (isSettingsSurface(row)) continue;
               const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT, null);
               let node = walker.nextNode();
               while (node) {
@@ -6203,33 +6334,9 @@ window.__ModuleLoader__.load({
 
            Once an element is stamped it is skipped, and the stamp is
            idempotent, so the pass is cheap on later runs. */
-        /* ---- Settings-surface detection --------------------------------
-           A settings page is itself a tall semantic column, so the geometry
-           pass would read it as a side panel and stamp the crimson SVG frame
-           and divider onto it. That is exactly the "the plugin changed the
-           settings UI" symptom, and it reaches host pages and every sibling
-           plugin's settings form alike (the startup-animation form, the
-           plugin market, the shell's own settings groups).
-
-           This check is deliberately cheap: it runs once per element in the
-           marking pass and once per text mutation in the copy rewrite. A
-           later version walked every ancestor and ran querySelectorAll on
-           each one — O(n^2) over the session DOM — and froze the app as soon
-           as a conversation was opened. Keep it to one closest() plus a
-           bounded text test. */
-
-        /* The plan's own section, marked on the page it renders. */
-        const SETTINGS_SELF_ATTR = 'data-cr-settings-self';
-
-        /* Section labels the settings navigation always shows. The first
-           group is the shipped copy; the rest are what this plugin renamed
-           them to, so a retitled nav is still recognised. */
-        const SETTINGS_NAV_LABELS = [
-          '通用', '外观', '模型', '插件', '终端', '账号', '语言',
-          '快捷键', '会话', '工作区', '自动化', '网络搜索',
-          '实验插件', '实验区',
-        ];
-
+        /* SettingsPanel is portaled to body, alongside the main frame. Its
+           stable modal marker covers both the navigation and every plugin's
+           content, without guessing from section names or column geometry. */
         const isSettingsRoute = function () {
           try {
             const path = (window.location && window.location.pathname || '') +
@@ -6240,25 +6347,40 @@ window.__ModuleLoader__.load({
 
         const isSettingsSurface = function (el) {
           if (!el || el.nodeType !== 1) return false;
-          /* The plan's own settings page. */
-          if (el.hasAttribute && el.hasAttribute(SETTINGS_SELF_ATTR)) return true;
-          if (el.closest && el.closest('[' + SETTINGS_SELF_ATTR + ']')) return true;
-          /* A settings route is the strongest signal the shell gives us. */
-          if (isSettingsRoute()) return true;
-          /* Otherwise: does this element sit inside the settings navigation?
-             The nav is a list of the labels above and nothing else. */
-          if (el.closest) {
-            const nav = el.closest('nav, aside, [role="navigation"]');
-            if (nav) {
-              const own = (nav.textContent || '').replace(/\s+/g, '');
-              if (own.length <= 240) {
-                for (const label of SETTINGS_NAV_LABELS) {
-                  if (own.indexOf(label) !== -1) return true;
-                }
+          return !!el.closest(SETTINGS_ROOT_SELECTOR);
+        };
+
+        const SETTINGS_MARKED_SELECTOR = '[' + RUNTIME_ATTRS.join('], [') + ']';
+        const syncSettingsSurfaces = function () {
+          const roots = new Set(document.querySelectorAll('[data-shortcut-modal="settings"]'));
+          for (const anchor of document.querySelectorAll(
+            '[data-slot="settings.section"], [data-cr-settings-self]'
+          )) {
+            roots.add(anchor.closest('[role="dialog"]') || anchor);
+          }
+          if (isSettingsRoute()) {
+            for (const root of document.querySelectorAll('main, [role="main"]')) roots.add(root);
+          }
+          for (const stale of document.querySelectorAll('[data-cr-settings-surface]')) {
+            if (!roots.has(stale)) stale.removeAttribute('data-cr-settings-surface');
+          }
+          for (const root of roots) {
+            if (!root.hasAttribute('data-cr-settings-surface')) {
+              root.setAttribute('data-cr-settings-surface', '');
+            }
+            for (const el of [root, ...root.querySelectorAll(SETTINGS_MARKED_SELECTOR)]) {
+              for (const attr of RUNTIME_ATTRS) {
+                if (el.hasAttribute(attr)) el.removeAttribute(attr);
               }
+              el.style.removeProperty('--cr-edge-top');
             }
           }
-          return false;
+        };
+
+        const isMainSidebarElement = function (el) {
+          return !!el && !isSettingsSurface(el) &&
+            !el.closest('[role="dialog"], [data-phase], [data-dsh-market-root], .cr-rail') &&
+            !!el.closest('[data-slot="sidebar"], [data-cr-panel="left"]');
         };
 
         const makeMarkingPass = function () {
@@ -6316,6 +6438,7 @@ window.__ModuleLoader__.load({
           };
 
           const tag = () => {
+            syncSettingsSurfaces();
             /* ---- 1. Column dividers -------------------------------
                There is one split on each side of the conversation column
                (sidebar | conversation | right rail), so every candidate is
@@ -6480,8 +6603,10 @@ window.__ModuleLoader__.load({
               heroHeadline.setAttribute('data-cr-hero-title', '');
               /* First sighting: this is the shell's own headline, before we
                  have replaced it. Remember it so the plan can put it back. */
-              if (heroBrandOriginal === null) {
-                heroBrandOriginal = heroHeadline.textContent || '';
+              if (!heroBrandOriginals.has(heroHeadline)) {
+                const original = heroHeadline.textContent || '';
+                heroBrandOriginals.set(heroHeadline, original);
+                if (heroBrandOriginal === null) heroBrandOriginal = original;
               }
               const heroText = heroBrandText || HERO_BRAND_DEFAULT;
               if (heroHeadline.textContent !== heroText) heroHeadline.textContent = heroText;
@@ -6512,6 +6637,7 @@ window.__ModuleLoader__.load({
                 let best = null;
                 let bestArea = 0;
                 for (const el of document.querySelectorAll('body *')) {
+                  if (isSettingsSurface(el)) continue;
                   if (el.classList && el.classList.contains('cr-rail')) continue;
                   if (el.hasAttribute('data-cr-edge')) continue;
                   const b = el.getBoundingClientRect();
@@ -6580,6 +6706,7 @@ window.__ModuleLoader__.load({
                the owner's style never changes between passes. */
             const card = Array.from(document.querySelectorAll('[data-composer-card]'))
               .filter((candidate) => {
+                if (isSettingsSurface(candidate)) return false;
                 const rect = candidate.getBoundingClientRect();
                 const style = getComputedStyle(candidate);
                 return rect.width > 0 && rect.height > 0 &&
@@ -6692,6 +6819,7 @@ window.__ModuleLoader__.load({
               document.querySelector('[data-cr-brand-name]'),
             ].filter(Boolean);
             for (const anchor of brandAnchors) {
+              if (isSettingsSurface(anchor)) continue;
               let node = anchor.parentElement;
               let depth = 0;
               while (node && node !== document.body && depth < 8) {
@@ -6707,6 +6835,7 @@ window.__ModuleLoader__.load({
                top strip), so mark it too even if the ancestry walk above
                never reached it. */
             for (const el of document.querySelectorAll('[data-window-drag]')) {
+              if (isSettingsSurface(el)) continue;
               el.setAttribute('data-cr-brand', '');
             }
 
@@ -6723,6 +6852,12 @@ window.__ModuleLoader__.load({
               'aside [role="listitem"], aside [role="option"], aside [role="row"], aside [role="treeitem"]'
             );
             for (const el of rowCandidates) {
+              if (!isMainSidebarElement(el)) {
+                el.removeAttribute('data-cr-row');
+                el.removeAttribute('data-cr-selected');
+                el.removeAttribute('data-cr-hot');
+                continue;
+              }
               const r = el.getBoundingClientRect();
               /* A row is short and reasonably wide. */
               const isBrand = el.closest && el.closest('[data-cr-brand]');
@@ -6768,6 +6903,14 @@ window.__ModuleLoader__.load({
               stale.removeAttribute('data-cr-market');
             }
             for (const el of entries) {
+              if (!isMainSidebarElement(el)) {
+                el.removeAttribute('data-cr-nav');
+                el.removeAttribute('data-cr-newsession');
+                for (const child of el.querySelectorAll('[data-cr-sidebar-copy]')) {
+                  child.removeAttribute('data-cr-sidebar-copy');
+                }
+                continue;
+              }
               const text = (el.textContent || '').trim();
               const label = el.getAttribute('aria-label') || '';
                /* The plugin market is another plugin's surface: it is no
@@ -6825,7 +6968,7 @@ window.__ModuleLoader__.load({
             for (const scope of indicatorScopes) {
               /* A settings page has its own spinners and toggles; they are not
                  the running-session indicator and must keep their colours. */
-              if (isSettingsSurface(scope)) continue;
+              if (!isMainSidebarElement(scope)) continue;
               const animated = typeof scope.getAnimations === 'function'
                 ? scope.getAnimations({ subtree: true })
                 : [];
@@ -6865,6 +7008,7 @@ window.__ModuleLoader__.load({
                Find SVGs that render blue, and mark the glyph itself. */
             const svgs = document.querySelectorAll('svg');
             for (const svg of svgs) {
+              if (!isMainSidebarElement(svg)) continue;
               if (svg.hasAttribute('data-cr-wsicon')) continue;
               const r = svg.getBoundingClientRect();
               if (r.width < 8 || r.width > 48) continue;
@@ -6928,7 +7072,7 @@ window.__ModuleLoader__.load({
             for (const scope of blueScopes) {
               /* Settings regions keep the shell's own section headings and
                  timestamps; this pass colours sidebar rows only. */
-              if (isSettingsSurface(scope)) continue;
+              if (!isMainSidebarElement(scope)) continue;
               /* Drop stale stamps first, so a label that changed text in place
                  does not keep the old colour. */
               for (const el of scope.querySelectorAll('[data-cr-section]')) {
@@ -6959,6 +7103,7 @@ window.__ModuleLoader__.load({
               '[data-cr-composer], [role="menu"], [role="listbox"], [role="dialog"]'
             );
             for (const scope of effortScopes) {
+              if (isSettingsSurface(scope)) continue;
               for (const el of scope.querySelectorAll('[data-cr-effort-high]')) {
                 const t = (el.textContent || '').trim();
                 if (t !== 'High' && t !== '高') el.removeAttribute('data-cr-effort-high');
@@ -7068,7 +7213,6 @@ window.__ModuleLoader__.load({
             document.removeEventListener('pointerover', onOver);
             document.removeEventListener('pointerout', onOut);
             window.removeEventListener('resize', onResize);
-            if (pending) window.clearTimeout(pending);
             if (sidebarObserver) sidebarObserver.disconnect();
           };
         };
