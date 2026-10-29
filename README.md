@@ -60,6 +60,33 @@ dsh plugin --profile desktop add link:C:/path/to/cyber-red-ui
 
 ---
 
+
+---
+
+## Git LFS
+
+The bundled media (`assets/`) is stored with **Git LFS**. A clone without it
+produces pointer text instead of real files, and the plugin will not play any
+wallpaper or track.
+
+```powershell
+git lfs install          # once per machine
+git clone https://github.com/huzhengcai471-crypto/cyber-red-ui.git
+```
+
+If you already cloned without LFS, fetch the objects in place:
+
+```powershell
+git lfs install
+git lfs pull
+```
+
+**Installing the plugin does not require cloning the repo.** The release
+tarball `dsh-cyber-red-ui-1.2.0.tgz` already contains the real media and is the
+recommended install path (see above). Clone only when you want to develop.
+
+---
+
 ## 功能
 
 | 功能 | 说明 |
