@@ -21,90 +21,146 @@ Static conversation wallpapers include First Contact, Lock No. 1, and The Sun Ri
 帮我把 WorkBuddy（DSH）的长征机主题插件 dsh-cyber-red-ui 装到我本机。
 
 ## 背景
-这是 DSH 客户端插件，装在 DSH 的 profile 里，不是 npm 全局包。
-它带 197 MB 媒体资源，安装包约 200 MB，所以下载可能较慢。
+这是一个 DSH 客户端插件，装在 DSH 的 profile 里，不是 npm 全局包。
+它带 197 MB 媒体资源（壁纸/音乐），所以安装包约 200 MB，下载可能较慢。
 
-## 第一步：探测环境，别急着装
+## 第一步：先探测环境，别急着装
 1. 找到 DSH 的 profile 目录：
-   - Windows: C:\Users\<用户名>\.dsh\profiles\
+   - Windows: C:\Users\<你的用户名>\.dsh\profiles\
    - macOS/Linux: ~/.dsh/profiles/
-   列出其中所有子目录名（通常有 desktop 或 default）。
-2. 读目标 profile 里的 package.json，告诉我现在的
+   列出其中所有子目录名，告诉我有哪些（通常有 desktop 或 default）。
+2. 读目标 profile 目录里的 package.json，告诉我它现在的
    dependencies 和 dsh.profile.bundles 分别有什么。
-3. 备份 package.json 和 pnpm-lock.yaml。
+3. 把这两个文件先备份一份（package.json 和 pnpm-lock.yaml）。
 4. 确认磁盘剩余空间 > 1 GB。
-做完这步停下来，把结果给我看，等我确认后再继续。
+
+做完这一步先停下来，把探测结果给我看，等我确认后再继续。
 
 ## 第二步：下载安装包
-GitHub 直连在大陆可能只有 0.04 MB/s，200 MB 要一个多小时。
-用镜像下载，实测 132 秒完成：
+推荐用镜像下载（GitHub 直连在大陆可能只有 0.04 MB/s，200 MB 要一个多小时；
+用镜像实测 132 秒完成）。
 
+镜像地址（在原始 URL 前拼接）：
 https://ghfast.top/https://github.com/huzhengcai471-crypto/cyber-red-ui/releases/download/v1.2.0/dsh-cyber-red-ui-1.2.0.tgz
 
-备选镜像（把前缀换成）：https://gh-proxy.com/
+备选镜像：
+https://gh-proxy.com/https://github.com/huzhengcai471-crypto/cyber-red-ui/releases/download/v1.2.0/dsh-cyber-red-ui-1.2.0.tgz
 
-下载命令示例：
-curl.exe -L --max-time 900 -o dsh-cyber-red-ui-1.2.0.tgz "<上面的地址>"
+下载命令示例（Windows）：
+curl.exe -L --max-time 900 -o dsh-cyber-red-ui-1.2.0.tgz "上面的镜像URL"
 
 ## 第三步：校验文件（必做）
-正确的 SHA256：
+下载完必须校验，确认文件没被镜像篡改或传输损坏。
+
+正确的 SHA256 是：
 18ab6466b852e97f9fae029d24b9f12dca51c52ee889298c56cfe0d487679c84
 
-Windows:  Get-FileHash dsh-cyber-red-ui-1.2.0.tgz -Algorithm SHA256
-macOS:    shasum -a 256 dsh-cyber-red-ui-1.2.0.tgz
+Windows 校验：
+Get-FileHash dsh-cyber-red-ui-1.2.0.tgz -Algorithm SHA256
 
-不匹配就不要安装，换镜像重下或改直连。
-通过后再确认哈希本身是真的（走 api.github.com，不要经镜像）：
+macOS/Linux 校验：
+shasum -a 256 dsh-cyber-red-ui-1.2.0.tgz
+
+如果哈希不匹配，不要安装，换镜像重下或改用直连。
+
+校验通过后再确认一下这个哈希本身是不是真的：
 https://api.github.com/repos/huzhengcai471-crypto/cyber-red-ui/releases/tags/v1.2.0
-看 assets[0].digest 是否等于上面的值。
+看返回里 assets[0].digest 字段是否等于上面的值。
+（这一步是防止镜像连同文件一起替换哈希，务必走 api.github.com 而不是镜像。）
 
 ## 第四步：安装
-dsh plugin --profile <profile名> add file:<tgz绝对路径>
+用 DSH 自带的插件命令，把路径换成你实际下载的位置：
+
+dsh plugin --profile <profile名> add file:<下载文件的绝对路径>
 
 例如：
 dsh plugin --profile desktop add file:C:/Users/me/Downloads/dsh-cyber-red-ui-1.2.0.tgz
 
-如果命令提示 profile 被桌面端独占管理而拒绝执行，改用手动安装：
-1. 解压 tgz（tar -xzf 或改名 .zip 后解压），会得到 package 目录
-2. 把 package 里的内容整个复制到 <profile目录>/node_modules/dsh-cyber-red-ui/
-3. 继续第五步
-注意：DSH 运行中可能占用文件，复制失败就先关掉 DSH。
+如果 dsh 命令提示 profile 被桌面端独占管理、拒绝执行，
+改成手动方式（往下看「手动安装」）。
 
 ## 第五步：注册插件
 打开 profile 的 package.json，确认两处：
-1. dependencies 里有 "dsh-cyber-red-ui": "file:<tgz路径>"
-2. dsh.profile.bundles 数组里有 "dsh-cyber-red-ui"，没有就追加
+
+1. dependencies 里有：
+   "dsh-cyber-red-ui": "file:<你的tgz路径>"
+
+2. dsh.profile.bundles 数组里要有 "dsh-cyber-red-ui"
+   没有就追加进去。例如：
+   "bundles": [
+     "@deepseek-ai/dsh-base",
+     "@deepseek-ai/dsh-web-app",
+     "dsh-cyber-red-ui"
+   ]
 
 ## 第六步：重启并验证
-重启 DSH。设置里能看到「长征计划」页面（主开关、头像、壁纸、音轨）即成功。
+重启 DSH。然后在设置里打开「长征计划」页面；能看到主开关、文案编辑、
+头像、壁纸、音轨这些选项，就说明装好了。
+
 界面左下方会出现「实验状态」按钮。
 
-## 如果没效果
-1. Ctrl+Shift+R 强制刷新（浏览器可能缓存旧 bundle）
-2. 确认 bundles 里有 "dsh-cyber-red-ui"
-3. 检查 node_modules/dsh-cyber-red-ui/client.js 是否约 8.2 MB。
-   如果只有几百字节，那是指针文件，说明下到了仓库源码而不是 Release 包，重下
-4. 看 DSH 启动日志有无 dsh-cyber-red-ui 报错
-5. 确认 DSH 版本是 0.2.x
+---
+
+## 手动安装（dsh 命令被拒绝时用）
+
+1. 在 profile 目录下建个文件夹放安装包，避免路径以后失效：
+   <profile目录>\plugin-tarballs\
+
+2. 把 tgz 改成 zip 后缀解压（tgz 就是 gzip 的 tar）：
+   或者直接用 tar 命令：
+   tar -xzf dsh-cyber-red-ui-1.2.0.tgz
+
+3. 解压后会有个 package 目录，把里面的内容整个复制到：
+   <profile目录>\node_modules\dsh-cyber-red-ui\
+
+4. 然后按「第五步」改 package.json 的两处。
+
+5. 重启 DSH。
+
+注意：如果 DSH 正在运行，node_modules 里的文件可能被占用导致复制失败，
+先关掉 DSH 再操作。
+
+---
+
+## 如果安装后没效果
+
+按顺序排查，把结果告诉我：
+1. 界面按 Ctrl+Shift+R 强制刷新一次（浏览器缓存可能还拿着旧的 bundle）
+2. 确认 profile 的 package.json 里 bundles 确实有 "dsh-cyber-red-ui"
+3. 检查 <profile目录>\node_modules\dsh-cyber-red-ui\ 是否存在，
+   且 client.js 大小约 8.2 MB（如果只有几百字节，那是指针文件，说明下载到了
+   GitHub 仓库源码而不是 Release 安装包，需要删掉重下 Release 的 tgz）
+4. 看 DSH 启动日志里有没有 dsh-cyber-red-ui 相关的报错
+5. 确认 DSH 版本是 0.2.x（太旧可能不兼容）
+
+---
 
 ## 已知问题
-不要用 dsh plugin add github:... 或 pnpm 直接指向仓库源码。
-仓库媒体文件用 Git LFS 存储，没装 git-lfs 会拿到指针文本，
-插件装上了但壁纸和音乐都不响。必须用 Release 里的 tgz。
+
+- 这个包很大（200 MB），主要是 197 MB 媒体资源。安装慢是正常的，不是卡死。
+- 别用 dsh plugin add github:... 直接从仓库装。仓库里的媒体文件用 Git LFS 存储，
+  没装 git-lfs 会拿到指针文本，插件装上了但壁纸和音乐都不响。
+  一定要用 Release 里的 tgz。
+- 不要用 pnpm add 直接指向仓库源码，同理。
+
+---
 
 ## 请遵守
-每步做完告诉我结果，不要一口气跑完。改文件前先备份。
-校验不通过就停下来问我，不要硬装。
+- 每一步做完告诉我结果，不要一口气跑到黑。
+- 改任何文件前先备份。
+- 校验哈希不通过就停下来问我，不要硬装。
 ```
 
-### 也可以手动一步步来
+### 不想用提示词的话
 
-提示词里的六个步骤本身就是完整流程。如果不需要 AI 代劳，按顺序做即可，
-关键只有三点：
+上面的提示词本身就是完整的手动流程，照着做即可。关键是三点：
 
 1. **用镜像下载**，直连会非常慢
 2. **校验 SHA256**，且校验值要从 `api.github.com` 取，不要从镜像取
 3. **只装 Release 里的 tgz**，不要从仓库源码安装（媒体是 LFS 指针）
+
+`dsh plugin add` 若提示 profile 被桌面端独占管理而拒绝执行，
+提示词里的「手动安装」一节给了逐文件复制的兜底做法。
 
 ### 安装完成后
 
