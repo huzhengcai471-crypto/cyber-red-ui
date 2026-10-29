@@ -40,6 +40,7 @@
     "README.zh.md",
     "LICENSE",
     "locale/*.json",
+    "scripts/*.mjs",
     "assets/*.jpg",
     "assets/*.mp4",
     "assets/*.ogg",
@@ -69,6 +70,6 @@
   "scripts": {
     "check": "node --check index.js && node --check client.js",
     "check:package": "node scripts/check-package.mjs",
-    "prepack": "node scripts/check-package.mjs"
+    "prepack": "node scripts/prepack.mjs"
   }
 }
