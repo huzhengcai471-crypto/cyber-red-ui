@@ -1,6 +1,6 @@
 # dsh-cyber-red-ui · 长征机
 
-A crimson-neon Long March Machine theme for **DeepSeek Harness (DSH)** — black base, blood-red
+A crimson-neon Long March Machine theme for **DSH** — black base, blood-red
 glow, scanlines, a lab status rail, dynamic video wallpapers, a music player, and its own
 settings page.
 
@@ -18,7 +18,7 @@ Static conversation wallpapers include First Contact, Lock No. 1, and The Sun Ri
 它会替你完成探测、下载、校验和安装；也可以照着里面的步骤自己做。
 
 ```text
-帮我把 WorkBuddy（DSH）的长征机主题插件 dsh-cyber-red-ui 装到我本机。
+帮我把 DSH 的长征机主题插件 dsh-cyber-red-ui 装到我本机。
 
 ## 背景
 这是一个 DSH 客户端插件，装在 DSH 的 profile 里，不是 npm 全局包。
