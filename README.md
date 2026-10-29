@@ -4,6 +4,8 @@ A crimson-neon control-desk theme for **DeepSeek Harness (DSH)** — black base,
 glow, scanlines, a lab status rail, dynamic video wallpapers, a music player, and its own
 settings page.
 
+Static conversation wallpapers include First Contact, Lock No. 1, and The Sun Rises as Usual.
+
 黑底正红霓虹主题：扫描线叠加、实验状态栏、动态视频壁纸、音乐播放器，并提供独立设置页。
 
 > Screenshots live in `docs/` once published.
@@ -41,7 +43,7 @@ dsh plugin --profile desktop add github:huzhengcai471-crypto/cyber-red-ui
 ### 方式二：从本地 tarball 安装
 
 ```powershell
-dsh plugin --profile desktop add file:C:/path/to/dsh-cyber-red-ui-1.1.0.tgz
+dsh plugin --profile desktop add file:C:/path/to/dsh-cyber-red-ui-1.2.0.tgz
 ```
 
 ### 方式三：开发模式（链接源码）
@@ -65,9 +67,10 @@ dsh plugin --profile desktop add link:C:/path/to/cyber-red-ui
 | **主题令牌** | 黑底 + 正红霓虹，覆盖文字、边框、背景与状态色 |
 | **扫描线 / 暗角** | 全窗口装饰层，纯 CSS 绘制，不拦截点击 |
 | **实验状态栏** | 右侧可收起面板：系统监控、世界状态、代码滚动、指标矩阵 |
-| **动态视频壁纸** | 5 段内联视频背景，支持 Range 流式播放 |
-| **静态壁纸** | 含 6 张内置图片背景（量子意识体、第四天灾、统辖体胜利凯旋等） |
-| **音乐播放器** | 12 首内置曲目 |
+| **动态视频壁纸** | 9 段内置视频背景，支持 Range 流式播放 |
+| **静态壁纸** | 多张内置图片背景，包含「第一次接触」「一号船闸」 |
+| **音乐播放器** | 15 首内置曲目 |
+| **自定义媒体** | 设置页可上传音频、头像图片/GIF 与会话背景图片/GIF/视频；文件保存在浏览器 IndexedDB 中，可在对应列表中删除 |
 | **实验状态栏顶部标语** | 自定义文案，仿宋加粗 |
 | **设置页** | 「长征计划」：主开关、文案编辑、头像、品牌图案、壁纸、亮度、音轨 |
 

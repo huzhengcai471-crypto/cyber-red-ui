@@ -1,6 +1,6 @@
 {
   "name": "dsh-cyber-red-ui",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Cyber-red control-desk theme for DeepSeek Harness: crimson neon tokens, scanline overlay, lab status rail, dynamic video wallpapers, a music player and a full settings page. | 赛博红控台：黑底正红霓虹主题、扫描线叠加层、实验状态栏、动态视频壁纸、音乐播放器与独立设置页。",
   "license": "MIT",
   "type": "module",
@@ -40,10 +40,12 @@
     "README.zh.md",
     "LICENSE",
     "locale/*.json",
+    "assets/*.jpg",
     "assets/*.mp4",
     "assets/*.ogg",
     "assets/*.flac",
     "assets/*.wav",
+    "assets/*.mp3",
     "assets/*.gif"
   ],
   "dsh": {
@@ -66,6 +68,7 @@
   },
   "scripts": {
     "check": "node --check index.js && node --check client.js",
-    "check:package": "node scripts/check-package.mjs"
+    "check:package": "node scripts/check-package.mjs",
+    "prepack": "node scripts/check-package.mjs"
   }
 }

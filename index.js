@@ -8,12 +8,24 @@ const execFileAsync = promisify(execFile);
 const NS = "cyber-red-ui";
 const METRICS_PATH = "/cyber-red-ui/metrics";
 const WORLD_STATUS_PATH = "/cyber-red-ui/world-status";
-const AVATAR_IMAGE_PATH = "/cyber-red-ui/images/longmarch-ji.gif";
+const AVATAR_IMAGE_PATH = "/cyber-red-ui/images/longmarch-ji-20261026.gif";
+const AVATAR_QINYUANCHUN_IMAGE_PATH = "/cyber-red-ui/images/longmarch-qinyuanchunxue.gif";
+const AVATAR_PRO_SAILOR_IMAGE_PATH = "/cyber-red-ui/images/longmarch-pro-sailor.gif";
+const AVATAR_PRO_J_IMAGE_PATH = "/cyber-red-ui/images/longmarch-pro-j.gif";
+const AVATAR_PRO_SINGER_IMAGE_PATH = "/cyber-red-ui/images/longmarch-pro-singer.gif";
+const LOGIC_ID_PHOTO_PATH = "/cyber-red-ui/images/logic-id-photo.gif";
+const YAN_AN_TORCH_IMAGE_PATH = "/cyber-red-ui/images/yan-an-torch.jpg";
+const BEAUTY_EXPLAINED_IMAGE_PATH = "/cyber-red-ui/images/beauty-explained.jpg";
+const FIRST_CONTACT_IMAGE_PATH = "/cyber-red-ui/images/first-contact.jpg";
+const NUMBER_ONE_LOCK_IMAGE_PATH = "/cyber-red-ui/images/number-one-lock.jpg";
 const CHAT_VIDEO_PATH = "/cyber-red-ui/video/forgotten-dynamic.mp4";
 const FOURTH_DISASTER_VIDEO_PATH = "/cyber-red-ui/video/fourth-disaster-dynamic.mp4";
 const TECH_DREAM_VIDEO_PATH = "/cyber-red-ui/video/tech-dream-dynamic.mp4";
 const LONGMARCH_VIDEO_PATH = "/cyber-red-ui/video/longmarch-dynamic.mp4";
-const QUANTUM_VIDEO_PATH = "/cyber-red-ui/video/quantum-dynamic.mp4";
+const CENTRAL_MILITARY_VIDEO_PATH = "/cyber-red-ui/video/central-military-commission.mp4";
+const NATIONAL_SECURITY_VIDEO_PATH = "/cyber-red-ui/video/national-security.mp4";
+const PARTY_AFFAIRS_VIDEO_PATH = "/cyber-red-ui/video/party-affairs-management.mp4";
+const NATIONAL_GOVERNMENT_VIDEO_PATH = "/cyber-red-ui/video/national-government-affairs.mp4";
 const THE_FIRE_RISES_AUDIO_PATH = "/cyber-red-ui/audio/the-fire-rises.ogg";
 const WAR_AUDIO_PATH = "/cyber-red-ui/audio/war.ogg";
 const BEETHOVEN5_AUDIO_PATH = "/cyber-red-ui/audio/beethoven5.ogg";
@@ -26,12 +38,27 @@ const TFR_COMMUNIST_VICTORY_AUDIO_PATH = "/cyber-red-ui/audio/TFR_se_communist_v
 const TFR_UNITED_VICTORY_AUDIO_PATH = "/cyber-red-ui/audio/TFR_se_united_victory.flac";
 const TFR_TRUMP_CUMS_AUDIO_PATH = "/cyber-red-ui/audio/TFR_se_trump_cums.wav";
 const TFR_OLD_GUARD_CONFEDERACY_AUDIO_PATH = "/cyber-red-ui/audio/TFR_se_old_guard_confederacy.flac";
-const AVATAR_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-ji.gif", import.meta.url));
+const YOU_SEE_ME_AUDIO_PATH = "/cyber-red-ui/audio/you-see-me.mp3";
+const PEOPLE_MARCH_ON_AUDIO_PATH = "/cyber-red-ui/audio/people-march-on.mp3";
+const UNMANNED_VICTORY_MARCH_AUDIO_PATH = "/cyber-red-ui/audio/unmanned-victory-march.mp3";
+const AVATAR_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-ji-20261026.gif", import.meta.url));
+const AVATAR_QINYUANCHUN_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-qinyuanchunxue.gif", import.meta.url));
+const AVATAR_PRO_SAILOR_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-pro-sailor.gif", import.meta.url));
+const AVATAR_PRO_J_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-pro-j.gif", import.meta.url));
+const AVATAR_PRO_SINGER_IMAGE_FILE = fileURLToPath(new URL("./assets/longmarch-pro-singer.gif", import.meta.url));
+const LOGIC_ID_PHOTO_FILE = fileURLToPath(new URL("./assets/logic-id-photo.gif", import.meta.url));
+const YAN_AN_TORCH_IMAGE_FILE = fileURLToPath(new URL("./assets/yan-an-torch.jpg", import.meta.url));
+const BEAUTY_EXPLAINED_IMAGE_FILE = fileURLToPath(new URL("./assets/beauty-explained.jpg", import.meta.url));
+const FIRST_CONTACT_IMAGE_FILE = fileURLToPath(new URL("./assets/first-contact.jpg", import.meta.url));
+const NUMBER_ONE_LOCK_IMAGE_FILE = fileURLToPath(new URL("./assets/number-one-lock.jpg", import.meta.url));
 const CHAT_VIDEO_FILE = fileURLToPath(new URL("./assets/forgotten-dynamic.mp4", import.meta.url));
 const FOURTH_DISASTER_VIDEO_FILE = fileURLToPath(new URL("./assets/fourth-disaster-dynamic.mp4", import.meta.url));
 const TECH_DREAM_VIDEO_FILE = fileURLToPath(new URL("./assets/tech-dream-dynamic.mp4", import.meta.url));
 const LONGMARCH_VIDEO_FILE = fileURLToPath(new URL("./assets/longmarch-dynamic.mp4", import.meta.url));
-const QUANTUM_VIDEO_FILE = fileURLToPath(new URL("./assets/quantum-dynamic.mp4", import.meta.url));
+const CENTRAL_MILITARY_VIDEO_FILE = fileURLToPath(new URL("./assets/central-military-commission.mp4", import.meta.url));
+const NATIONAL_SECURITY_VIDEO_FILE = fileURLToPath(new URL("./assets/national-security.mp4", import.meta.url));
+const PARTY_AFFAIRS_VIDEO_FILE = fileURLToPath(new URL("./assets/party-affairs-management.mp4", import.meta.url));
+const NATIONAL_GOVERNMENT_VIDEO_FILE = fileURLToPath(new URL("./assets/national-government-affairs.mp4", import.meta.url));
 const THE_FIRE_RISES_AUDIO_FILE = fileURLToPath(new URL("./assets/the-fire-rises.ogg", import.meta.url));
 const WAR_AUDIO_FILE = fileURLToPath(new URL("./assets/war.ogg", import.meta.url));
 const BEETHOVEN5_AUDIO_FILE = fileURLToPath(new URL("./assets/beethoven5.ogg", import.meta.url));
@@ -44,6 +71,9 @@ const TFR_COMMUNIST_VICTORY_AUDIO_FILE = fileURLToPath(new URL("./assets/TFR_se_
 const TFR_UNITED_VICTORY_AUDIO_FILE = fileURLToPath(new URL("./assets/TFR_se_united_victory.flac", import.meta.url));
 const TFR_TRUMP_CUMS_AUDIO_FILE = fileURLToPath(new URL("./assets/TFR_se_trump_cums.wav", import.meta.url));
 const TFR_OLD_GUARD_CONFEDERACY_AUDIO_FILE = fileURLToPath(new URL("./assets/TFR_se_old_guard_confederacy.flac", import.meta.url));
+const YOU_SEE_ME_AUDIO_FILE = fileURLToPath(new URL("./assets/you-see-me.mp3", import.meta.url));
+const PEOPLE_MARCH_ON_AUDIO_FILE = fileURLToPath(new URL("./assets/people-march-on.mp3", import.meta.url));
+const UNMANNED_VICTORY_MARCH_AUDIO_FILE = fileURLToPath(new URL("./assets/unmanned-victory-march.mp3", import.meta.url));
 /* Media is read on demand, never at module load.
 
    The previous version called readFileSync on every bundled video and audio
@@ -472,13 +502,25 @@ function apply(ctx) {
   });
 
   const avatarImageRouteDisposer = registerMediaRoute(AVATAR_IMAGE_PATH, AVATAR_IMAGE_FILE, "image/gif");
+  const avatarQinyuanchunImageRouteDisposer = registerMediaRoute(AVATAR_QINYUANCHUN_IMAGE_PATH, AVATAR_QINYUANCHUN_IMAGE_FILE, "image/gif");
+  const avatarProSailorImageRouteDisposer = registerMediaRoute(AVATAR_PRO_SAILOR_IMAGE_PATH, AVATAR_PRO_SAILOR_IMAGE_FILE, "image/gif");
+  const avatarProJImageRouteDisposer = registerMediaRoute(AVATAR_PRO_J_IMAGE_PATH, AVATAR_PRO_J_IMAGE_FILE, "image/gif");
+  const avatarProSingerImageRouteDisposer = registerMediaRoute(AVATAR_PRO_SINGER_IMAGE_PATH, AVATAR_PRO_SINGER_IMAGE_FILE, "image/gif");
+  const logicIdPhotoRouteDisposer = registerMediaRoute(LOGIC_ID_PHOTO_PATH, LOGIC_ID_PHOTO_FILE, "image/gif");
+  const yanAnTorchImageRouteDisposer = registerMediaRoute(YAN_AN_TORCH_IMAGE_PATH, YAN_AN_TORCH_IMAGE_FILE, "image/jpeg");
+  const beautyExplainedImageRouteDisposer = registerMediaRoute(BEAUTY_EXPLAINED_IMAGE_PATH, BEAUTY_EXPLAINED_IMAGE_FILE, "image/jpeg");
+  const firstContactImageRouteDisposer = registerMediaRoute(FIRST_CONTACT_IMAGE_PATH, FIRST_CONTACT_IMAGE_FILE, "image/jpeg");
+  const numberOneLockImageRouteDisposer = registerMediaRoute(NUMBER_ONE_LOCK_IMAGE_PATH, NUMBER_ONE_LOCK_IMAGE_FILE, "image/jpeg");
 
   /* Range requests let the browser seek and decode bundled background videos. */
   const chatVideoRouteDisposer = registerMediaRoute(CHAT_VIDEO_PATH, CHAT_VIDEO_FILE);
   const fourthDisasterVideoRouteDisposer = registerMediaRoute(FOURTH_DISASTER_VIDEO_PATH, FOURTH_DISASTER_VIDEO_FILE);
   const techDreamVideoRouteDisposer = registerMediaRoute(TECH_DREAM_VIDEO_PATH, TECH_DREAM_VIDEO_FILE);
   const longmarchVideoRouteDisposer = registerMediaRoute(LONGMARCH_VIDEO_PATH, LONGMARCH_VIDEO_FILE);
-  const quantumVideoRouteDisposer = registerMediaRoute(QUANTUM_VIDEO_PATH, QUANTUM_VIDEO_FILE);
+  const centralMilitaryVideoRouteDisposer = registerMediaRoute(CENTRAL_MILITARY_VIDEO_PATH, CENTRAL_MILITARY_VIDEO_FILE);
+  const nationalSecurityVideoRouteDisposer = registerMediaRoute(NATIONAL_SECURITY_VIDEO_PATH, NATIONAL_SECURITY_VIDEO_FILE);
+  const partyAffairsVideoRouteDisposer = registerMediaRoute(PARTY_AFFAIRS_VIDEO_PATH, PARTY_AFFAIRS_VIDEO_FILE);
+  const nationalGovernmentVideoRouteDisposer = registerMediaRoute(NATIONAL_GOVERNMENT_VIDEO_PATH, NATIONAL_GOVERNMENT_VIDEO_FILE);
   const theFireRisesAudioRouteDisposer = registerMediaRoute(
     THE_FIRE_RISES_AUDIO_PATH,
     THE_FIRE_RISES_AUDIO_FILE,
@@ -503,6 +545,9 @@ function apply(ctx) {
   const tfrUnitedVictoryAudioRouteDisposer = registerMediaRoute(TFR_UNITED_VICTORY_AUDIO_PATH, TFR_UNITED_VICTORY_AUDIO_FILE, "audio/flac");
   const tfrTrumpCumsAudioRouteDisposer = registerMediaRoute(TFR_TRUMP_CUMS_AUDIO_PATH, TFR_TRUMP_CUMS_AUDIO_FILE, "audio/wav");
   const tfrOldGuardConfederacyAudioRouteDisposer = registerMediaRoute(TFR_OLD_GUARD_CONFEDERACY_AUDIO_PATH, TFR_OLD_GUARD_CONFEDERACY_AUDIO_FILE, "audio/flac");
+  const youSeeMeAudioRouteDisposer = registerMediaRoute(YOU_SEE_ME_AUDIO_PATH, YOU_SEE_ME_AUDIO_FILE, "audio/mpeg");
+  const peopleMarchOnAudioRouteDisposer = registerMediaRoute(PEOPLE_MARCH_ON_AUDIO_PATH, PEOPLE_MARCH_ON_AUDIO_FILE, "audio/mpeg");
+  const unmannedVictoryMarchAudioRouteDisposer = registerMediaRoute(UNMANNED_VICTORY_MARCH_AUDIO_PATH, UNMANNED_VICTORY_MARCH_AUDIO_FILE, "audio/mpeg");
 
   const worldRouteDisposer = webServer.register({
     kind: "exact",
@@ -534,11 +579,23 @@ function apply(ctx) {
     clearInterval(interval);
     try { if (typeof routeDisposer === "function") routeDisposer(); } catch {}
     try { if (typeof avatarImageRouteDisposer === "function") avatarImageRouteDisposer(); } catch {}
+    try { if (typeof avatarQinyuanchunImageRouteDisposer === "function") avatarQinyuanchunImageRouteDisposer(); } catch {}
+    try { if (typeof avatarProSailorImageRouteDisposer === "function") avatarProSailorImageRouteDisposer(); } catch {}
+    try { if (typeof avatarProJImageRouteDisposer === "function") avatarProJImageRouteDisposer(); } catch {}
+    try { if (typeof avatarProSingerImageRouteDisposer === "function") avatarProSingerImageRouteDisposer(); } catch {}
+    try { if (typeof logicIdPhotoRouteDisposer === "function") logicIdPhotoRouteDisposer(); } catch {}
+    try { if (typeof moonBaseImageRouteDisposer === "function") moonBaseImageRouteDisposer(); } catch {}
+    try { if (typeof beautyExplainedImageRouteDisposer === "function") beautyExplainedImageRouteDisposer(); } catch {}
+    try { if (typeof firstContactImageRouteDisposer === "function") firstContactImageRouteDisposer(); } catch {}
+    try { if (typeof numberOneLockImageRouteDisposer === "function") numberOneLockImageRouteDisposer(); } catch {}
     try { if (typeof chatVideoRouteDisposer === "function") chatVideoRouteDisposer(); } catch {}
     try { if (typeof fourthDisasterVideoRouteDisposer === "function") fourthDisasterVideoRouteDisposer(); } catch {}
     try { if (typeof techDreamVideoRouteDisposer === "function") techDreamVideoRouteDisposer(); } catch {}
     try { if (typeof longmarchVideoRouteDisposer === "function") longmarchVideoRouteDisposer(); } catch {}
-    try { if (typeof quantumVideoRouteDisposer === "function") quantumVideoRouteDisposer(); } catch {}
+    try { if (typeof centralMilitaryVideoRouteDisposer === "function") centralMilitaryVideoRouteDisposer(); } catch {}
+    try { if (typeof nationalSecurityVideoRouteDisposer === "function") nationalSecurityVideoRouteDisposer(); } catch {}
+    try { if (typeof partyAffairsVideoRouteDisposer === "function") partyAffairsVideoRouteDisposer(); } catch {}
+    try { if (typeof nationalGovernmentVideoRouteDisposer === "function") nationalGovernmentVideoRouteDisposer(); } catch {}
     try { if (typeof theFireRisesAudioRouteDisposer === "function") theFireRisesAudioRouteDisposer(); } catch {}
     try { if (typeof warAudioRouteDisposer === "function") warAudioRouteDisposer(); } catch {}
     try { if (typeof beethoven5AudioRouteDisposer === "function") beethoven5AudioRouteDisposer(); } catch {}
@@ -551,11 +608,14 @@ function apply(ctx) {
     try { if (typeof tfrUnitedVictoryAudioRouteDisposer === "function") tfrUnitedVictoryAudioRouteDisposer(); } catch {}
     try { if (typeof tfrTrumpCumsAudioRouteDisposer === "function") tfrTrumpCumsAudioRouteDisposer(); } catch {}
     try { if (typeof tfrOldGuardConfederacyAudioRouteDisposer === "function") tfrOldGuardConfederacyAudioRouteDisposer(); } catch {}
+    try { if (typeof youSeeMeAudioRouteDisposer === "function") youSeeMeAudioRouteDisposer(); } catch {}
+    try { if (typeof peopleMarchOnAudioRouteDisposer === "function") peopleMarchOnAudioRouteDisposer(); } catch {}
+    try { if (typeof unmannedVictoryMarchAudioRouteDisposer === "function") unmannedVictoryMarchAudioRouteDisposer(); } catch {}
     try { if (typeof worldRouteDisposer === "function") worldRouteDisposer(); } catch {}
   };
   if (typeof ctx?.effect === "function") ctx.effect(() => dispose, `${NS}: metrics route`);
   try {
-    ctx?.logger?.info?.(`[${NS}] metrics route ready: ${METRICS_PATH}; world status route: ${WORLD_STATUS_PATH}; chat video routes: ${CHAT_VIDEO_PATH}, ${FOURTH_DISASTER_VIDEO_PATH}, ${TECH_DREAM_VIDEO_PATH}, ${LONGMARCH_VIDEO_PATH}, ${QUANTUM_VIDEO_PATH}; audio routes: ${THE_FIRE_RISES_AUDIO_PATH}, ${WAR_AUDIO_PATH}, ${BEETHOVEN5_AUDIO_PATH}, ${TONGXIA_KAI_XUAN_AUDIO_PATH}, ${TFR_INVASION_OF_TAIWAN_AUDIO_PATH}, ${TFR_GAW_AUDIO_PATH}, ${TFR_SECOND_AMERICAN_CIVIL_WAR_AUDIO_PATH}, ${TFR_MAGA_KING_AUDIO_PATH}, ${TFR_COMMUNIST_VICTORY_AUDIO_PATH}, ${TFR_UNITED_VICTORY_AUDIO_PATH}, ${TFR_TRUMP_CUMS_AUDIO_PATH}, ${TFR_OLD_GUARD_CONFEDERACY_AUDIO_PATH}`);
+    ctx?.logger?.info?.(`[${NS}] metrics route ready: ${METRICS_PATH}; world status route: ${WORLD_STATUS_PATH}; chat video routes: ${CHAT_VIDEO_PATH}, ${FOURTH_DISASTER_VIDEO_PATH}, ${TECH_DREAM_VIDEO_PATH}, ${LONGMARCH_VIDEO_PATH}, ${CENTRAL_MILITARY_VIDEO_PATH}, ${NATIONAL_SECURITY_VIDEO_PATH}, ${PARTY_AFFAIRS_VIDEO_PATH}, ${NATIONAL_GOVERNMENT_VIDEO_PATH}; audio routes: ${THE_FIRE_RISES_AUDIO_PATH}, ${WAR_AUDIO_PATH}, ${BEETHOVEN5_AUDIO_PATH}, ${TONGXIA_KAI_XUAN_AUDIO_PATH}, ${TFR_INVASION_OF_TAIWAN_AUDIO_PATH}, ${TFR_GAW_AUDIO_PATH}, ${TFR_SECOND_AMERICAN_CIVIL_WAR_AUDIO_PATH}, ${TFR_MAGA_KING_AUDIO_PATH}, ${TFR_COMMUNIST_VICTORY_AUDIO_PATH}, ${TFR_UNITED_VICTORY_AUDIO_PATH}, ${TFR_TRUMP_CUMS_AUDIO_PATH}, ${TFR_OLD_GUARD_CONFEDERACY_AUDIO_PATH}, ${YOU_SEE_ME_AUDIO_PATH}, ${PEOPLE_MARCH_ON_AUDIO_PATH}, ${UNMANNED_VICTORY_MARCH_AUDIO_PATH}`);
   } catch {}
   return dispose;
 }

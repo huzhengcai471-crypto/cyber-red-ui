@@ -1,42 +1,61 @@
-# Publishing
+# Publishing checklist
 
-The project is published at `https://github.com/huzhengcai471-crypto/cyber-red-ui`.
-The repository contains the complete source and bundled media assets. The
-versioned install tarball is attached to each GitHub Release and excluded from
-Git history.
+Version 1.0.0 source is published in the public GitHub repository:
+`https://github.com/huzhengcai471-crypto/cyber-red-ui`.
 
-Install the current release with:
+The repository includes the complete source and all bundled media assets.
+The `*.tgz` package is intentionally excluded from Git; users can install
+directly from the repository with:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/huzhengcai471-crypto/cyber-red-ui/releases/download/v1.1.0/dsh-cyber-red-ui-1.1.0.tgz
+dsh plugin --profile desktop add github:huzhengcai471-crypto/cyber-red-ui
 ```
 
 Add `dsh-cyber-red-ui` to `dsh.profile.bundles` in the target profile and
 restart DSH.
 
-## Verify and package
+## 1. Quick sanity checks
 
 ```powershell
-npm run check
-node tests/plan-features.mjs
-node tests/settings-isolation.mjs
-npm run check:package
-npm pack
+node --check index.js
+node --check client.js
+node -e "for (const f of ['client.js','index.js']) { const s=require('fs').readFileSync(f,'utf8'); if (/\uFFFD/.test(s)) throw new Error('mojibake in '+f) }"
 ```
 
-The package should be named `dsh-cyber-red-ui-1.1.0.tgz` and contain the
-18 bundled media assets.
+## 2. Pack
 
-## Publish a release
+```powershell
+pnpm pack
+```
 
-Commit the source and push `main`, then create and push the matching version
-tag. Attach the generated tarball to the GitHub Release for that tag.
+Expected: `dsh-cyber-red-ui-1.0.0.tgz`, ~82 MB.
+
+## 3. Publish future changes to GitHub
 
 ```powershell
 git add .
-git commit -m "Release 1.1.0"
-git push origin main
-git tag -a v1.1.0 -m "dsh-cyber-red-ui 1.1.0"
-git push origin v1.1.0
-gh release create v1.1.0 dsh-cyber-red-ui-1.1.0.tgz --title "dsh-cyber-red-ui 1.1.0" --notes-file RELEASE_NOTES_v1.1.0.md
+git commit -m "Describe the change"
+git push -u origin main
 ```
+
+> The tarball is git-ignored. Publish source; let users install from source.
+
+## 4. Optional: release asset
+
+If you also want a downloadable tarball, attach `dsh-cyber-red-ui-1.0.0.tgz`
+to a GitHub Release. Users can then install with:
+
+```powershell
+dsh plugin --profile desktop add https://github.com/huzhengcai471-crypto/cyber-red-ui/releases/download/v1.0.0/dsh-cyber-red-ui-1.0.0.tgz
+```
+
+## Notes on size
+
+77 MB of the 85 MB package is media (5 videos + 8 FLAC + 3 OGG + 1 WAV + 1 GIF).
+A git clone therefore transfers ~82 MB. If that is too heavy, the options are:
+
+- drop the largest audio tracks, or
+- publish the tarball as a Release asset and keep the repo media-free.
+
+The host half is already lazy: importing it costs ~3 MB of RSS regardless of
+asset size, so runtime memory is not a concern.
