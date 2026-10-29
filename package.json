@@ -1,7 +1,7 @@
 {
   "name": "dsh-cyber-red-ui",
   "version": "1.2.0",
-  "description": "Cyber-red control-desk theme for DeepSeek Harness: crimson neon tokens, scanline overlay, lab status rail, dynamic video wallpapers, a music player and a full settings page. | 赛博红控台：黑底正红霓虹主题、扫描线叠加层、实验状态栏、动态视频壁纸、音乐播放器与独立设置页。",
+  "description": "Long March Machine theme for DeepSeek Harness: crimson neon tokens, scanline overlay, lab status rail, dynamic video wallpapers, a music player and a full settings page. | 长征机：黑底正红霓虹主题、扫描线叠加层、实验状态栏、动态视频壁纸、音乐播放器与独立设置页。",
   "license": "MIT",
   "type": "module",
   "keywords": [
