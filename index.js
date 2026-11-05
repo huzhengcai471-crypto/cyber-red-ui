@@ -1,5 +1,6 @@
 import os from "node:os";
 import fs from "node:fs";
+import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,7 @@ const YAN_AN_TORCH_IMAGE_PATH = "/cyber-red-ui/images/yan-an-torch.jpg";
 const BEAUTY_EXPLAINED_IMAGE_PATH = "/cyber-red-ui/images/beauty-explained.jpg";
 const FIRST_CONTACT_IMAGE_PATH = "/cyber-red-ui/images/first-contact.jpg";
 const NUMBER_ONE_LOCK_IMAGE_PATH = "/cyber-red-ui/images/number-one-lock.jpg";
+const BRAND_FONT_PATH = "/cyber-red-ui/fonts/maozedong.ttf";
 const CHAT_VIDEO_PATH = "/cyber-red-ui/video/forgotten-dynamic.mp4";
 const FOURTH_DISASTER_VIDEO_PATH = "/cyber-red-ui/video/fourth-disaster-dynamic.mp4";
 const TECH_DREAM_VIDEO_PATH = "/cyber-red-ui/video/tech-dream-dynamic.mp4";
@@ -51,6 +53,8 @@ const YAN_AN_TORCH_IMAGE_FILE = fileURLToPath(new URL("./assets/yan-an-torch.jpg
 const BEAUTY_EXPLAINED_IMAGE_FILE = fileURLToPath(new URL("./assets/beauty-explained.jpg", import.meta.url));
 const FIRST_CONTACT_IMAGE_FILE = fileURLToPath(new URL("./assets/first-contact.jpg", import.meta.url));
 const NUMBER_ONE_LOCK_IMAGE_FILE = fileURLToPath(new URL("./assets/number-one-lock.jpg", import.meta.url));
+/* The brand wordmark and the rail's top label use this face (草檀斋毛泽东字体). */
+const BRAND_FONT_FILE = fileURLToPath(new URL("./assets/maozedong.ttf", import.meta.url));
 const CHAT_VIDEO_FILE = fileURLToPath(new URL("./assets/forgotten-dynamic.mp4", import.meta.url));
 const FOURTH_DISASTER_VIDEO_FILE = fileURLToPath(new URL("./assets/fourth-disaster-dynamic.mp4", import.meta.url));
 const TECH_DREAM_VIDEO_FILE = fileURLToPath(new URL("./assets/tech-dream-dynamic.mp4", import.meta.url));
@@ -148,10 +152,21 @@ function readDiskFallback() {
   }
 }
 
+/* Per-provider timeout for the geolocation / weather lookups.
+ *
+ * This MUST stay well under the client's wait. readGeoLocation() fans out to
+ * several providers and waits for ALL of them (Promise.allSettled), so the
+ * response takes as long as the SLOWEST one. With a 9s timeout and a 5s client
+ * wait, one dead provider (ipapi.co answers 403/times out) held the prologue
+ * past the client's limit — the request was abandoned, the card flipped to
+ * offline, and the weather showed as unavailable even though another provider
+ * had already answered with a perfectly good fix. */
+const GEO_FETCH_TIMEOUT_MS = 3500;
+
 async function fetchJson(url) {
   if (typeof fetch !== "function") throw new Error("host fetch unavailable");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 9000);
+  const timer = setTimeout(() => controller.abort(), GEO_FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
@@ -164,38 +179,192 @@ async function fetchJson(url) {
   }
 }
 
-async function readGeoLocation() {
-  try {
-    const value = await fetchJson("https://ipwho.is/");
-    if (value && value.success !== false && (value.country || value.city)) {
-      return {
-        ip: value.ip || null,
-        countryCode: value.country_code || null,
-        country: value.country || null,
-        region: value.region || null,
-        city: value.city || null,
-        latitude: Number(value.latitude),
-        longitude: Number(value.longitude),
-        timezone: value.timezone?.id || value.timezone?.utc || "UTC",
-      };
-    }
-  } catch {}
+/* ---- Geolocation -----------------------------------------------------
+   IP geolocation is only ever approximate, and the providers disagree with
+   each other by tens or hundreds of kilometres because each one resolves a
+   different BGP prefix to a different registered address. Taking whichever
+   provider answered first (the previous behaviour) made the card show a
+   city that most other lookups contradicted.
 
-  const value = await fetchJson("https://ipapi.co/json/");
+   The approach here is to ask several providers concurrently and pick the
+   answer the majority agrees on. Coordinates are taken from the largest
+   mutually-consistent cluster, and the city name from the same cluster, so
+   the weather query and the label describe the same place. */
+
+const GEO_PROVIDERS = [
+  {
+    name: "ipwho.is",
+    url: "https://ipwho.is/",
+    read: (v) => ({
+      countryCode: v.country_code || null,
+      country: v.country || null,
+      region: v.region || null,
+      city: v.city || null,
+      latitude: Number(v.latitude),
+      longitude: Number(v.longitude),
+      timezone: (v.timezone && (v.timezone.id || v.timezone.utc)) || null,
+    }),
+  },
+  {
+    name: "ipapi.co",
+    url: "https://ipapi.co/json/",
+    read: (v) => ({
+      countryCode: v.country_code || null,
+      country: v.country_name || null,
+      region: v.region || null,
+      city: v.city || null,
+      latitude: Number(v.latitude),
+      longitude: Number(v.longitude),
+      timezone: v.timezone || null,
+    }),
+  },
+  {
+    name: "ipinfo.io",
+    url: "https://ipinfo.io/json",
+    read: (v) => {
+      const loc = String(v.loc || "").split(",");
+      return {
+        countryCode: v.country || null,
+        country: null,
+        region: v.region || null,
+        city: v.city || null,
+        latitude: Number(loc[0]),
+        longitude: Number(loc[1]),
+        timezone: v.timezone || null,
+      };
+    },
+  },
+  {
+    name: "ip-api.com",
+    url: "http://ip-api.com/json/?lang=en",
+    read: (v) => ({
+      countryCode: v.countryCode || null,
+      country: v.country || null,
+      region: v.regionName || null,
+      city: v.city || null,
+      latitude: Number(v.lat),
+      longitude: Number(v.lon),
+      timezone: v.timezone || null,
+    }),
+  },
+];
+
+/* Roughly how far apart two fixes are, in km (equirectangular, plenty for
+   this comparison). */
+function distanceKm(a, b) {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLon = (b.longitude - a.longitude) * rad;
+  const meanLat = ((a.latitude + b.latitude) / 2) * rad;
+  const x = dLon * Math.cos(meanLat);
+  return Math.sqrt(x * x + dLat * dLat) * 6371;
+}
+
+function normaliseCity(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+/* Two answers agree when their cities match, or when their coordinates fall
+   inside the same ~120 km neighbourhood. Coordinates win over names because
+   each provider spells the same place differently ("管城" vs "Zhengzhou"). */
+function sameFix(a, b) {
+  if (!a || !b) return false;
+  const aCity = normaliseCity(a.city);
+  const bCity = normaliseCity(b.city);
+  if (aCity && bCity && aCity === bCity) return true;
+  const aHas = Number.isFinite(a.latitude) && Number.isFinite(a.longitude);
+  const bHas = Number.isFinite(b.latitude) && Number.isFinite(b.longitude);
+  if (aHas && bHas) return distanceKm(a, b) <= 120;
+  return false;
+}
+
+async function readGeoLocation() {
+  const settled = await Promise.allSettled(
+    GEO_PROVIDERS.map(async (provider) => {
+      const raw = await fetchJson(provider.url);
+      const fix = provider.read(raw || {});
+      fix.provider = provider.name;
+      return fix;
+    }),
+  );
+
+  const fixes = settled
+    .filter((r) => r.status === "fulfilled" && r.value)
+    .map((r) => r.value)
+    .filter((fix) => fix.country || fix.city);
+
+  if (fixes.length === 0) throw new Error("geolocation unavailable");
+
+  /* Score every fix by how many others agree with it; the best cluster wins. */
+  let best = null;
+  let bestScore = -1;
+  for (const candidate of fixes) {
+    const score = fixes.filter((other) => sameFix(candidate, other)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  const cluster = fixes.filter((other) => sameFix(best, other));
+  const withCoords = cluster.filter(
+    (fix) => Number.isFinite(fix.latitude) && Number.isFinite(fix.longitude),
+  );
+
+  /* Average the coordinates so one provider's imprecise pin does not decide
+     the weather query on its own. */
+  const latitude = withCoords.length
+    ? withCoords.reduce((sum, fix) => sum + fix.latitude, 0) / withCoords.length
+    : Number(best.latitude);
+  const longitude = withCoords.length
+    ? withCoords.reduce((sum, fix) => sum + fix.longitude, 0) / withCoords.length
+    : Number(best.longitude);
+
+  /* Pick the most specific city label from the winning cluster. */
+  const cityLabel = cluster
+    .map((fix) => fix.city)
+    .filter(Boolean)
+    .sort((a, b) => String(b).length - String(a).length)[0] || best.city || null;
+
   return {
-    ip: value?.ip || null,
-    countryCode: value?.country_code || null,
-    country: value?.country_name || null,
-    region: value?.region || null,
-    city: value?.city || null,
-    latitude: Number(value?.latitude),
-    longitude: Number(value?.longitude),
-    timezone: value?.timezone || "UTC",
+    ip: null,
+    countryCode: best.countryCode || null,
+    country: best.country || cluster.map((f) => f.country).find(Boolean) || null,
+    region: best.region || cluster.map((f) => f.region).find(Boolean) || null,
+    city: cityLabel,
+    latitude,
+    longitude,
+    timezone:
+      best.timezone || cluster.map((f) => f.timezone).find(Boolean) || "UTC",
+    providers: fixes.map((f) => f.provider),
+    agreement: `${cluster.length}/${fixes.length}`,
+    spreadKm: withCoords.length > 1
+      ? Math.round(Math.max(...withCoords.map((f) => distanceKm(best, f))))
+      : 0,
   };
 }
 
 async function readWorldStatus() {
-  const location = await readGeoLocation();
+  let location;
+  try {
+    location = await readGeoLocation();
+  } catch (error) {
+    /* No provider answered. Keep the card honest rather than guessing a city:
+       the client renders "定位与天气服务暂时不可用" for this shape. */
+    return {
+      ip: null,
+      countryCode: null,
+      country: null,
+      region: null,
+      city: null,
+      latitude: null,
+      longitude: null,
+      timezone: "UTC",
+      weather: null,
+      error: error instanceof Error ? error.message : String(error),
+      updatedAt: Date.now(),
+    };
+  }
   let weather = null;
   if (Number.isFinite(location.latitude) && Number.isFinite(location.longitude)) {
     try {
@@ -416,11 +585,32 @@ function apply(ctx) {
     }
   };
 
+  /* Route registration must never take the whole host down.
+     The webserver rejects a second registration of the same exact path with
+     `duplicate exact route "<path>"`. A plugin instance can be applied twice
+     (the shell re-arming it after a gate, or a second loader entry), and the
+     throw used to abort the entire boot with "1 entry did not activate",
+     after which the app would not start at all. Every registration below is
+     therefore routed through `tryRegister`, which logs once and degrades to a
+     no-op disposer instead of throwing. The first registration always wins,
+     so the media keeps being served by the surviving instance. */
+  const registerRoute = (spec, label) => {
+    try {
+      return webServer.register(spec);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      try {
+        ctx?.logger?.warn?.(`[${NS}] route ${label} not registered (${message}); a previous instance already owns it`);
+      } catch {}
+      return () => {};
+    }
+  };
+
   /* Serve one bundled media file by streaming the requested byte range from
      disk. The Range grammar and status codes are unchanged from the previous
      in-memory version: 405 for a non-GET/HEAD method, 416 for an unsatisfiable
      range, 206 for a partial body, 200 for a whole body. */
-  const registerMediaRoute = (path, file, contentType = "video/mp4") => webServer.register({
+  const registerMediaRoute = (path, file, contentType = "video/mp4") => registerRoute({
     kind: "exact",
     path,
     handler: (req, res) => {
@@ -483,7 +673,7 @@ function apply(ctx) {
       stream.pipe(res);
     },
   });
-  const routeDisposer = webServer.register({
+  const routeDisposer = registerRoute({
     kind: "exact",
     path: METRICS_PATH,
     handler: async (req, res) => {
@@ -511,6 +701,8 @@ function apply(ctx) {
   const beautyExplainedImageRouteDisposer = registerMediaRoute(BEAUTY_EXPLAINED_IMAGE_PATH, BEAUTY_EXPLAINED_IMAGE_FILE, "image/jpeg");
   const firstContactImageRouteDisposer = registerMediaRoute(FIRST_CONTACT_IMAGE_PATH, FIRST_CONTACT_IMAGE_FILE, "image/jpeg");
   const numberOneLockImageRouteDisposer = registerMediaRoute(NUMBER_ONE_LOCK_IMAGE_PATH, NUMBER_ONE_LOCK_IMAGE_FILE, "image/jpeg");
+  /* Served with a font MIME type so the browser will use it in @font-face. */
+  const brandFontRouteDisposer = registerMediaRoute(BRAND_FONT_PATH, BRAND_FONT_FILE, "font/ttf");
 
   /* Range requests let the browser seek and decode bundled background videos. */
   const chatVideoRouteDisposer = registerMediaRoute(CHAT_VIDEO_PATH, CHAT_VIDEO_FILE);
@@ -549,7 +741,59 @@ function apply(ctx) {
   const peopleMarchOnAudioRouteDisposer = registerMediaRoute(PEOPLE_MARCH_ON_AUDIO_PATH, PEOPLE_MARCH_ON_AUDIO_FILE, "audio/mpeg");
   const unmannedVictoryMarchAudioRouteDisposer = registerMediaRoute(UNMANNED_VICTORY_MARCH_AUDIO_PATH, UNMANNED_VICTORY_MARCH_AUDIO_FILE, "audio/mpeg");
 
-  const worldRouteDisposer = webServer.register({
+  /* ---- Diagnostic sink ------------------------------------------------
+     The conversation-area flicker can only be diagnosed from the live
+     renderer, and the app window's DevTools is awkward to drive. The client
+     half of this plugin POSTs its own state samples here and they are
+     appended to a file outside the app, so the run can be inspected
+     afterwards without touching the console.
+
+     Deliberately narrow: POST only, JSON body capped at 256 KB, written to a
+     single fixed path under the dsh home. It records counts and attribute
+     names, never message content. */
+  const DIAG_PATH = "/cyber-red-ui/diag";
+  const DIAG_FILE = path.join(os.homedir(), ".dsh", "cyber-red-ui-diag.ndjson");
+  const diagDisposer = registerRoute({
+    kind: "exact",
+    path: DIAG_PATH,
+    handler: async (req, res) => {
+      if (rejected(req, res)) return;
+      if (req.method !== "POST") {
+        res.writeHead(405, { Allow: "POST" });
+        res.end();
+        return;
+      }
+      const chunks = [];
+      let size = 0;
+      let aborted = false;
+      req.on("data", (chunk) => {
+        if (aborted) return;
+        size += chunk.length;
+        if (size > 256 * 1024) {
+          aborted = true;
+          res.writeHead(413);
+          res.end();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on("error", () => { try { res.destroy(); } catch {} });
+      req.on("end", () => {
+        if (aborted) return;
+        try {
+          fs.appendFileSync(DIAG_FILE, Buffer.concat(chunks).toString("utf8") + "\n");
+          res.writeHead(204);
+          res.end();
+        } catch (error) {
+          res.writeHead(500, { "Content-Type": "text/plain" });
+          res.end(error instanceof Error ? error.message : String(error));
+        }
+      });
+    },
+  });
+
+
+  const worldRouteDisposer = registerRoute({
     kind: "exact",
     path: WORLD_STATUS_PATH,
     handler: async (req, res) => {
@@ -588,6 +832,7 @@ function apply(ctx) {
     try { if (typeof beautyExplainedImageRouteDisposer === "function") beautyExplainedImageRouteDisposer(); } catch {}
     try { if (typeof firstContactImageRouteDisposer === "function") firstContactImageRouteDisposer(); } catch {}
     try { if (typeof numberOneLockImageRouteDisposer === "function") numberOneLockImageRouteDisposer(); } catch {}
+    try { if (typeof brandFontRouteDisposer === "function") brandFontRouteDisposer(); } catch {}
     try { if (typeof chatVideoRouteDisposer === "function") chatVideoRouteDisposer(); } catch {}
     try { if (typeof fourthDisasterVideoRouteDisposer === "function") fourthDisasterVideoRouteDisposer(); } catch {}
     try { if (typeof techDreamVideoRouteDisposer === "function") techDreamVideoRouteDisposer(); } catch {}
@@ -612,6 +857,7 @@ function apply(ctx) {
     try { if (typeof peopleMarchOnAudioRouteDisposer === "function") peopleMarchOnAudioRouteDisposer(); } catch {}
     try { if (typeof unmannedVictoryMarchAudioRouteDisposer === "function") unmannedVictoryMarchAudioRouteDisposer(); } catch {}
     try { if (typeof worldRouteDisposer === "function") worldRouteDisposer(); } catch {}
+    try { if (typeof diagDisposer === "function") diagDisposer(); } catch {}
   };
   if (typeof ctx?.effect === "function") ctx.effect(() => dispose, `${NS}: metrics route`);
   try {

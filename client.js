@@ -10,20 +10,26 @@ window.__ModuleLoader__.load({
      * so the glow reads the same whichever scheme the OS reports.
      * ---------------------------------------------------------------- */
     const TOKENS = {
+      /* Only the SURFACE tints are re-pointed. The sidebar reads #0a0a0a while
+         the content layers step up to #151515 / #1b1b1c, and that gap is what
+         gives the left column its own darker plate — the look this theme is
+         expected to have. Everything else (borders, labels, state colours,
+         brand, button fills) stays at DSH's own values, because overriding
+         those globally is what made other plugins' controls unreadable. */
       '--dsw-alias-bg-base': { light: '#0d0d0d', dark: '#0d0d0d' },
       '--dsw-alias-bg-layer-1': { light: '#151515', dark: '#151515' },
       '--dsw-alias-bg-layer-2': { light: '#1c1c1c', dark: '#1c1c1c' },
       '--dsw-alias-bg-overlay': { light: '#181818', dark: '#181818' },
-      '--dsw-alias-border-l1': { light: '#5a0d0d', dark: '#5a0d0d' },
-      '--dsw-alias-border-l2': { light: '#6b1010', dark: '#6b1010' },
-      '--dsw-alias-border-l3': { light: '#5a0d0d', dark: '#5a0d0d' },
-      '--dsw-alias-brand-primary': { light: '#8b0000', dark: '#8b0000' },
-      '--dsw-alias-label-primary': { light: '#fff4f6', dark: '#fff4f6' },
-      '--dsw-alias-label-secondary': { light: '#c99aa2', dark: '#c99aa2' },
-      '--dsw-alias-state-error-primary': { light: '#3a1113', dark: '#3a1113' },
-      '--dsw-alias-state-idle-primary': { light: '#a8666f', dark: '#a8666f' },
+      '--dsw-alias-border-l1': { light: '#ffffff0f', dark: '#ffffff0f' },
+      '--dsw-alias-border-l2': { light: '#ffffff1f', dark: '#ffffff1f' },
+      '--dsw-alias-border-l3': { light: '#ffffff29', dark: '#ffffff29' },
+      '--dsw-alias-brand-primary': { light: '#0f1115', dark: '#0f1115' },
+      '--dsw-alias-label-primary': { light: '#ebeef2', dark: '#ebeef2' },
+      '--dsw-alias-label-secondary': { light: '#cfd3d6', dark: '#cfd3d6' },
+      '--dsw-alias-state-error-primary': { light: '#ec1313', dark: '#ec1313' },
+      '--dsw-alias-state-idle-primary': { light: '#545557', dark: '#545557' },
       '--dsw-alias-state-success-primary': { light: '#39d98a', dark: '#39d98a' },
-      '--dsw-alias-state-warn-primary': { light: '#3a1113', dark: '#3a1113' },
+      '--dsw-alias-state-warn-primary': { light: '#f59e0b', dark: '#f59e0b' },
       '--dsw-specific-sidebar-fill': { light: '#0a0a0a', dark: '#0a0a0a' },
     };
 
@@ -83,21 +89,90 @@ window.__ModuleLoader__.load({
     const SETTINGS_CSS = `${SETTINGS_ROOT_SELECTOR} { ${SETTINGS_PALETTE} }`;
 
     const SHELL_CSS = `
+      /* Bundled display face for the two wordmarks only (草檀斋毛泽东字体).
+         Served by this plugin's own route; scoped by family name so no other
+         text in the UI changes. */
+      @font-face {
+        font-family: "CyberRedBrandFont";
+        src: url("/cyber-red-ui/fonts/maozedong.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
       :root {
-        /* Lifted palette: a vivid crimson reads clearly on the near-black
-           ground, where the old #8b0000 maroon sank into it. */
-        --cr-red: #8b0000;
-        --cr-red-dim: #6b0808;
-        --cr-glow: rgba(139, 0, 0, 0.62);
-        --cr-panel-line: rgba(139, 0, 0, 0.74);
-        --cr-panel-line-soft: rgba(139, 0, 0, 0.34);
-        --cr-panel-glow: rgba(139, 0, 0, 0.28);
+        /* ---- Accent ------------------------------------------------------
+           One variable drives every crimson line, frame and label in the UI.
+           The settings page writes --cr-accent on :root, and the derived
+           tones below follow it through color-mix, so a colour change needs
+           no re-render and no second value to keep in sync.
+
+           --cr-accent is the bright end (labels, hairlines, the blinking
+           dot). --cr-red is the solid line colour the frames were drawn with;
+           at the shipped crimson the two are nearly the same value, which is
+           why they looked identical before this was configurable. */
+        --cr-accent: #8b0000;
+        --cr-accent-soft: color-mix(in srgb, var(--cr-accent) 62%, transparent);
+        --cr-accent-faint: color-mix(in srgb, var(--cr-accent) 34%, transparent);
+        --cr-accent-ghost: color-mix(in srgb, var(--cr-accent) 14%, transparent);
+        --cr-accent-line: color-mix(in srgb, var(--cr-accent) 80%, transparent);
+        --cr-accent-text: color-mix(in srgb, var(--cr-accent) 78%, #ffcfd4);
+        --cr-accent-bright: color-mix(in srgb, var(--cr-accent) 55%, #ff6b72);
+        /* The composer's glow needed a lighter, more saturated tone than the
+           accent itself so the halo reads as light rather than a line; both
+           of these follow the chosen colour. */
+        --cr-accent-glow: color-mix(in srgb, var(--cr-accent) 62%, #ff3a46);
+        --cr-accent-highlight: color-mix(in srgb, var(--cr-accent) 35%, #ffc0c4);
+
+        /* ---- Panel and readout colours -----------------------------------
+           Two independent colours, each with its own picker. They are kept
+           separate from --cr-accent because they answer a different question:
+           the music player wants a surface tint behind its controls, and the
+           monitor wants a readout colour for its glyph, bars and numbers.
+           Both default to tones of the accent so a fresh install still looks
+           like one theme. */
+        /* The player surface is derived from --cr-accent directly in
+           MUSIC_PLAYER_CSS; there is no separate variable to keep in sync. */
+        --cr-monitor-tone: #ff4545;
+
+        /* ---- Fake feature cards ------------------------------------------
+           Their own colour, independent of the frame accent: the card is a
+           self-contained "readout" block, and being able to tint it separately
+           is the whole point (e.g. amber log lines on a crimson frame). */
+        --cr-fake-tone: #ff4b4b;
+
+        /* Lifted palette derived from the accent: the shipped crimson had to
+           be lifted off the near-black ground to read clearly, and every tone
+           below keeps that same relationship whatever colour is chosen. */
+        --cr-red: var(--cr-accent);
+        --cr-red-dim: color-mix(in srgb, var(--cr-accent) 76%, #000);
+        --cr-glow: color-mix(in srgb, var(--cr-accent) 62%, transparent);
+        --cr-panel-line: color-mix(in srgb, var(--cr-accent) 74%, transparent);
+        --cr-panel-line-soft: var(--cr-accent-faint);
+        --cr-panel-glow: color-mix(in srgb, var(--cr-accent) 28%, transparent);
         --cr-sidebar-gap: 8px;
+        /* How far the crimson panel rule sits inside its column. The rule is
+           painted by [data-cr-panel]::before with this inset, and the rail
+           aligns to it, so the two must share one value. */
+        --cr-panel-inset: 6px;
+        /* How far the rail's own crimson rule sits inside its box. Used both
+           to paint .cr-rail::before and to lift the rail so its rule meets the
+           sidebar's rule on the same row. */
+        --cr-rail-frame-inset: 10px;
         --cr-rail-inset: 8px;
         --cr-player-height: 57px;
         --cr-player-control-height: 25px;
-        --cr-border-red: #8b0000;
+        --cr-border-red: var(--cr-accent);
+
+        /* Only the sidebar's fill is restored to the theme's own value. It is
+           the one surface the user asked to keep dark; every other shell token
+           stays native (see the note below), because overriding them globally
+           is what broke other plugins' panels. */
+        --dsw-specific-sidebar-fill: #0a0a0a;
       }
+      /* Surface tokens ARE registered (see armTheme); borders, labels, state
+         colours and button fills are deliberately left at DSH's own values,
+         because re-pointing those globally is what made other plugins'
+         controls unreadable. */
       html, body, #root {
         /* Flat native black: the earlier build washed the whole canvas with two
            crimson radial gradients, which showed through the sidebar as a red
@@ -105,6 +180,33 @@ window.__ModuleLoader__.load({
         background-color: #0d0d0d !important;
         background-image: none !important;
         background-attachment: fixed !important;
+      }
+      /* ---- Left column and caption strip: painted directly ----------------
+         This is the ONLY surface the theme repaints, and it is painted on the
+         column itself rather than through a theme token. A token would be a
+         global act: the sidebar and every page would share it and could never
+         differ. Painting one element keeps every page — including other
+         plugins' panels — on the shell's own colours.
+
+         Several selectors on purpose: the shell has changed which element owns
+         the column between versions, and a miss here is invisible. */
+      [data-slot="sidebar"],
+      [data-slot="sidebar"] > div,
+      [data-cr-panel="left"],
+      aside[data-slot],
+      nav[data-slot],
+      [data-sidebar-collapsed] > aside,
+      [data-sidebar-collapsed] > nav {
+        background-color: #0a0a0a !important;
+        background-image: none !important;
+      }
+      /* The 40px native caption strip at the top of the window. */
+      .cr-decor__topbar {
+        background-color: #0d0d0d !important;
+        background-image: none !important;
+      }
+      html[data-windows-titlebar] .cr-decor__topbar {
+        background-color: #0d0d0d !important;
       }
 
       /* ---- Conversation-window wallpaper -------------------------------
@@ -114,8 +216,10 @@ window.__ModuleLoader__.load({
          while the transcript scrolls. */
       [data-phase] {
         background-image:
-          linear-gradient(rgba(12, 2, 3, var(--cr-chat-veil, 0.42)),
-                          rgba(12, 2, 3, var(--cr-chat-veil, 0.42))),
+          linear-gradient(
+            color-mix(in srgb, var(--cr-accent) 7%, rgba(6, 6, 8, var(--cr-chat-veil, 0.42))),
+            color-mix(in srgb, var(--cr-accent) 7%, rgba(6, 6, 8, var(--cr-chat-veil, 0.42)))
+          ),
           var(--cr-chat-wallpaper, url(${CHAT_BG_URL})) !important;
         background-size: cover, cover !important;
         background-position: center center, center center !important;
@@ -170,6 +274,15 @@ window.__ModuleLoader__.load({
         background-image: none !important;
         background-color: #0d0d0d !important;
       }
+      /* The scroller sits deeper than a direct child of [data-phase], so the
+         rule above does not reach it. Without its own level the opaque video
+         canvas covered the last messages when the list was scrolled to the
+         bottom. */
+      html[data-cr-chat-video-bg] [data-phase] [data-conversation-scroll],
+      html[data-cr-chat-video-bg] [data-phase] [data-conversation-content] {
+        position: relative;
+        z-index: 2;
+      }
       /* Inner surfaces must stay clear so the artwork shows through. */
       [data-phase] [data-conversation-scroll],
       [data-phase] [data-conversation-content],
@@ -184,11 +297,11 @@ window.__ModuleLoader__.load({
       body {
         color-scheme: dark;      }
       ::selection {
-        background: rgba(139, 0, 0, 0.603);
+        background: color-mix(in srgb, var(--cr-accent) 60%, transparent);
         color: #fff;
       }
       * {
-        scrollbar-color: #6b0808 transparent;
+        scrollbar-color: var(--cr-red-dim) transparent;
       }
 
       /* ---- Lab rail: narrow the conversation while it is open ----------
@@ -253,7 +366,14 @@ window.__ModuleLoader__.load({
       /* ---- Framed navigation panels ------------------------------------
          The shell's side columns keep their native geometry. The frame is
          painted with inset shadows and a clipped inner rule, so the border
-         cannot change the grid tracks while still reading as a panel. */
+         cannot change the grid tracks while still reading as a panel.
+
+         These were briefly rewritten as a mask-image + background-color pair
+         so the stroke could follow --cr-accent, but a mask failure (unsupported
+         syntax, or an SVG the engine refuses to load as a mask) paints
+         NOTHING — which is why the left inner frame vanished. They are back on
+         the original background-image approach, with the stroke drawn in
+         currentColor so a colour change still reaches them. */
       [data-cr-panel] {
         box-shadow: none !important;
       }
@@ -261,7 +381,13 @@ window.__ModuleLoader__.load({
       [data-cr-panel]::before {
         content: "";
         position: absolute;
-        inset: 6px;
+        /* Shares the value the rail aligns to, so the frame's top rule and the
+           rail's top edge can never drift apart. */
+        inset: var(--cr-panel-inset, 6px);
+        /* The stroke is currentColor, so the frame follows this element's
+           colour — one property write recolours the artwork without the mask
+           trick that silently painted nothing when it failed. */
+        color: var(--cr-accent);
         background: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H930 L992 70 V930 L930 992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat;
         pointer-events: none;
         z-index: 4;
@@ -278,9 +404,12 @@ window.__ModuleLoader__.load({
           14px 100%, 0 calc(100% - 14px)
         );
       }
-      /* The panel scanline overlay is removed: it is a repeating red 1px
-         texture spanning the whole panel, so it also drew lines behind the
-         brand wordmark. */
+      /* The panel scanline overlay is NOT used: it was a repeating 1px red
+         texture spanning the whole panel and it also drew lines behind the
+         brand wordmark. Hiding it is the whole decision — the earlier version
+         of this file also gave ::after a background-image further down, so the
+         two rules fought and source order silently decided the result. Only
+         ::before paints the frame now. */
       [data-cr-panel]::after {
         display: none !important;
         content: none !important;
@@ -291,10 +420,16 @@ window.__ModuleLoader__.load({
 
       /* Keep the requested asymmetric corner treatment on the sidebars:
          the left panel starts square at its upper-left corner, while the
-         right panel ends square at its lower-right corner. */
-      [data-cr-panel="left"]::before,
-      [data-cr-panel="left"]::after {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M8 8 H930 L992 70 V930 L930 992 H8 V8 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3Cpath d%3D%27M956 72 L922 38 M956 928 L922 962%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.65%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E");
+         right panel ends square at its lower-right corner. Only ::before is
+         styled — ::after stays hidden by the rule above. */
+      [data-cr-panel="left"]::before {
+        color: var(--cr-accent);
+        background-color: transparent;
+        -webkit-mask-image: none;
+        mask-image: none;
+        background-image: var(--cr-frame-left, url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M8 8 H930 L992 70 V930 L930 992 H8 V8 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3Cpath d%3D%27M956 72 L922 38 M956 928 L922 962%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.65%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E"));
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
         -webkit-clip-path: polygon(
           0 0, calc(100% - 14px) 0, 100% 14px,
           100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%
@@ -304,9 +439,14 @@ window.__ModuleLoader__.load({
           100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%
         );
       }
-      [data-cr-panel="right"]::before,
-      [data-cr-panel="right"]::after {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H930 L992 70 V992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E");
+      [data-cr-panel="right"]::before {
+        color: var(--cr-accent);
+        background-color: transparent;
+        -webkit-mask-image: none;
+        mask-image: none;
+        background-image: var(--cr-frame-right, url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H930 L992 70 V992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E"));
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
         -webkit-clip-path: polygon(
           14px 0, calc(100% - 14px) 0, 100% 14px,
           100% 100%, 0 100%, 0 calc(100% - 14px), 0 14px
@@ -315,18 +455,39 @@ window.__ModuleLoader__.load({
           14px 0, calc(100% - 14px) 0, 100% 14px,
           100% 100%, 0 100%, 0 calc(100% - 14px), 0 14px
         );
-      }
-      /* The scanline overlay keeps its original texture; only the ::before
-         frame artwork uses the side-specific SVG paths above. */
-      [data-cr-panel="left"]::after,
-      [data-cr-panel="right"]::after {
-        background-image: repeating-linear-gradient(to bottom,
-          rgba(139, 0, 0, 0.13) 0 1px, transparent 1px 5px);
       }
       /* The outer left-panel frame is square at its upper-left corner, but
          the nested inner frame keeps its small diagonal fold. */
       [data-cr-panel="left"]::before {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M8 8 H930 L992 70 V930 L930 992 H8 V8 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E");
+        color: var(--cr-accent);
+        background-color: transparent;
+        -webkit-mask-image: none;
+        mask-image: none;
+        background-image: var(--cr-frame-left-inner, url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M8 8 H930 L992 70 V930 L930 992 H8 V8 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.9%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E"));
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+      }
+
+      /* ---- Conversation rules ------------------------------------------
+         Horizontal rules the shell paints inside the conversation column
+         (above the message list and under the "已完成" row). They are matched
+         by geometry at runtime and marked with data-cr-rule; this rule then
+         moves their colour onto the accent so the picker controls them.
+
+         The !important flag is required: the shell sets these borders inline
+         or from its own higher-specificity component classes. */
+      [data-cr-rule] {
+        border-color: color-mix(in srgb, var(--cr-accent) 82%, transparent) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 82%, transparent) !important;
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent) 55%, transparent) !important;
+      }
+      /* Some separators are painted by a pseudo-element rather than the box
+         itself, so the same colouring is applied to both. */
+      [data-cr-rule]::before,
+      [data-cr-rule]::after {
+        border-color: color-mix(in srgb, var(--cr-accent) 82%, transparent) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 82%, transparent) !important;
+        box-shadow: none !important;
       }
 
       /* ---- Conversation column: blood-red treatment --------------------
@@ -337,43 +498,43 @@ window.__ModuleLoader__.load({
          reads in the same blood red as the rail. */
       [data-cr-convo] {
         background-image:
-          radial-gradient(ellipse 100% 60% at 50% 0%, rgba(139, 0, 0, 0.308), transparent 70%),
-          radial-gradient(ellipse 90% 50% at 50% 100%, rgba(139, 0, 0, 0.215), transparent 70%);
+          radial-gradient(ellipse 100% 60% at 50% 0%, color-mix(in srgb, var(--cr-accent) 31%, transparent), transparent 70%),
+          radial-gradient(ellipse 90% 50% at 50% 100%, color-mix(in srgb, var(--cr-accent) 22%, transparent), transparent 70%);
         background-repeat: no-repeat;
       }
       [data-cr-convo] [data-cr-bubble],
       [data-cr-convo] [data-cr-card] {
-        border-color: rgba(139, 0, 0, 0.22) !important;
+        border-color: color-mix(in srgb, var(--cr-accent) 22%, transparent) !important;
         background-color: rgba(255, 255, 255, 0.04) !important;
-        box-shadow: 0 0 10px rgba(139, 0, 0, 0.14),
-                    inset 0 0 16px rgba(139, 0, 0, 0.10);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 14%, transparent),
+                    inset 0 0 16px color-mix(in srgb, var(--cr-accent) 10%, transparent);
       }
       [data-cr-convo] pre,
       [data-cr-convo] pre code {
         border-color: transparent !important;
-        background-color: transparent !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 6%, transparent) !important;
         color: #ffe0e4 !important;
       }
       [data-cr-convo] :not(pre) > code {
-        border-color: rgba(139, 0, 0, 0.22) !important;
-        background-color: rgba(255, 255, 255, 0.06) !important;
+        border-color: color-mix(in srgb, var(--cr-accent) 22%, transparent) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 8%, rgba(255, 255, 255, 0.04)) !important;
         color: #ffe0e4 !important;
       }
-      [data-cr-convo] a { color: #ec2626 !important; }
-      [data-cr-convo] a:hover { color: #d40000 !important; }
+      [data-cr-convo] a { color: var(--cr-accent-bright) !important; }
+      [data-cr-convo] a:hover { color: var(--cr-accent-text) !important; }
       [data-cr-convo] hr {
-        background: rgba(139, 0, 0, 0.30) !important;
-        border-color: rgba(139, 0, 0, 0.30) !important;
+        background: color-mix(in srgb, var(--cr-accent) 30%, transparent) !important;
+        border-color: color-mix(in srgb, var(--cr-accent) 30%, transparent) !important;
       }
       [data-cr-convo] th {
-        border-bottom-color: rgba(139, 0, 0, 0.24) !important;
+        border-bottom-color: color-mix(in srgb, var(--cr-accent) 24%, transparent) !important;
         border-top: 0 !important;
       }
       [data-cr-convo] td {
-        border-bottom-color: rgba(139, 0, 0, 0.18) !important;
+        border-bottom-color: color-mix(in srgb, var(--cr-accent) 18%, transparent) !important;
       }
       [data-cr-convo] blockquote {
-        border-color: rgba(139, 0, 0, 0.30) !important;
+        border-color: color-mix(in srgb, var(--cr-accent) 30%, transparent) !important;
       }
       [data-cr-convo] button:not([disabled]) { border-radius: 0; }
 
@@ -392,14 +553,14 @@ window.__ModuleLoader__.load({
         opacity: 1;
       }
       [data-conversation-tabs] [role="tab"][aria-selected="true"] {
-        color: #8b0000 !important;
+        color: var(--cr-accent) !important;
         opacity: 1;
         font-weight: 600;
-        text-shadow: 0 0 10px rgba(139, 0, 0, 0.913);
+        text-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 91%, transparent);
       }
       /* The active underline the shell paints on the selected tab. */
       [data-conversation-tabs] [role="tab"][aria-selected="true"]::after {
-        background: #8b0000 !important;
+        background: var(--cr-accent) !important;
       }
 
       /* ---- Running indicator (深度求索中 -> 中央算力处理中) -------------
@@ -408,10 +569,10 @@ window.__ModuleLoader__.load({
          flat text and the shimmer gradient. The whale glyph is hidden and a
          red blinking dot takes its place, matching the top-bar status dot. */
       [data-chat-running] {
-        --dsw-alias-label-deep-diving: #8b0000 !important;
-        --dsw-alias-label-deep-diving-shimmer: #a81818 !important;
-        --dsw-alias-label-shimmer: #a81818 !important;
-        color: #8b0000 !important;
+        --dsw-alias-label-deep-diving: var(--cr-accent) !important;
+        --dsw-alias-label-deep-diving-shimmer: var(--cr-accent-text) !important;
+        --dsw-alias-label-shimmer: var(--cr-accent-text) !important;
+        color: var(--cr-accent) !important;
       }
       /* Hide the whale artwork (both the masked animation and the still svg). */
       [data-chat-running] [class*="runningIcon"],
@@ -425,22 +586,39 @@ window.__ModuleLoader__.load({
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: #ff2244;
-        box-shadow: 0 0 8px rgba(255, 70, 96, 0.95),
-                    0 0 16px rgba(255, 70, 96, 0.55);
+        background: var(--cr-accent-glow);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent-glow) 95%, transparent),
+                    0 0 16px color-mix(in srgb, var(--cr-accent-glow) 55%, transparent);
         animation: cr-run-dot 1.6s steps(2, end) infinite;
       }
       @keyframes cr-run-dot {
         0%, 60% { opacity: 1; }
         61%, 100% { opacity: 0.18; }
       }
-      /* The visible label must read blood red too, shimmer included. */
+      /* The visible label must read blood red too — INCLUDING its shimmer.
+         Clearing background-image here used to kill the sweep animation the
+         shell paints across the text, so the label sat there as flat colour.
+         The gradient is kept and only its two stops are re-pointed at the
+         accent, which preserves the animation and the wording's own width
+         (the sweep is measured from the text itself, so no length maths is
+         needed here). */
       [data-chat-running] [class*="runningText"],
       [data-chat-running] [class*="runningText"] * {
-        color: #8b0000 !important;
-        -webkit-text-fill-color: #8b0000 !important;
-        background-image: none !important;
-        text-shadow: 0 0 10px rgba(139, 0, 0, 0.835) !important;
+        color: var(--cr-accent) !important;
+        text-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 84%, transparent) !important;
+        /* The sweep is a background-clip:text gradient; the theme supplies
+           both of its colours so the moving highlight matches the accent. */
+        --dsw-alias-label-deep-diving: var(--cr-accent) !important;
+        --dsw-alias-label-deep-diving-shimmer: var(--cr-accent-text) !important;
+        --dsw-alias-label-shimmer: var(--cr-accent-text) !important;
+      }
+      /* A reduced-motion preference keeps the flat colour, animation off. */
+      @media (prefers-reduced-motion: reduce) {
+        [data-chat-running] [class*="runningText"],
+        [data-chat-running] [class*="runningText"] * {
+          background-image: none !important;
+          -webkit-text-fill-color: var(--cr-accent) !important;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         [data-chat-running] [class*="runningContent"]::before { animation: none; }
@@ -509,7 +687,7 @@ window.__ModuleLoader__.load({
         -webkit-backdrop-filter: blur(18px) saturate(1.7) brightness(1.05) !important;
         backdrop-filter: blur(18px) saturate(1.7) brightness(1.05) !important;
         /* No border of its own — clip-path would cut it off anyway. */
-        box-shadow: 0 0 14px rgba(200, 20, 26, 0.30) !important;
+        box-shadow: 0 0 14px color-mix(in srgb, var(--cr-accent) 30%, transparent) !important;
       }
 
       /* Content above the glass. */
@@ -542,13 +720,13 @@ window.__ModuleLoader__.load({
         background: transparent;
         pointer-events: none;
         box-shadow:
-          0 0 2px  rgba(255, 60, 70, 0.95),
-          0 0 8px  rgba(255, 40, 55, 0.85),
-          0 0 18px rgba(240, 20, 45, 0.65),
-          0 0 32px rgba(205, 10, 35, 0.45),
-          0 0 56px rgba(170, 0, 28, 0.25),
-          inset 0 0 1px  rgba(255, 130, 130, 0.75),
-          inset 0 0 16px rgba(255, 50, 60, 0.28);
+          0 0 2px  color-mix(in srgb, var(--cr-accent-glow) 95%, transparent),
+          0 0 8px  color-mix(in srgb, var(--cr-accent-glow) 85%, transparent),
+          0 0 18px color-mix(in srgb, var(--cr-accent) 65%, transparent),
+          0 0 32px color-mix(in srgb, var(--cr-accent) 45%, transparent),
+          0 0 56px color-mix(in srgb, var(--cr-accent) 25%, transparent),
+          inset 0 0 1px  color-mix(in srgb, var(--cr-accent-highlight) 75%, transparent),
+          inset 0 0 16px color-mix(in srgb, var(--cr-accent-glow) 28%, transparent);
       }
       [data-cr-composer] [data-composer-card]::after {
         content: "";
@@ -558,11 +736,11 @@ window.__ModuleLoader__.load({
         pointer-events: none;
         /* Plain transparent field: no grain, no bevel. Just a trace of crimson
            and one soft top highlight so it does not read as a hole. */
-        background-color: rgba(139, 0, 0, 0.012);
+        background-color: color-mix(in srgb, var(--cr-accent) 1%, transparent);
         background-image: linear-gradient(
           180deg,
-          rgba(255, 175, 175, 0.018) 0%,
-          rgba(255, 130, 130, 0.008) 40%,
+          color-mix(in srgb, var(--cr-accent-highlight) 1.8%, transparent) 0%,
+          color-mix(in srgb, var(--cr-accent-highlight) 0.8%, transparent) 40%,
           transparent 100%
         );
         background-size: 100% 100%;
@@ -588,7 +766,7 @@ window.__ModuleLoader__.load({
         border: 0 !important;
         background: transparent !important;
         color: #ffffff !important;
-        caret-color: #ff4040 !important;
+        caret-color: var(--cr-accent-bright) !important;
         font-family: "Fixedsys", "Consolas", "Courier New", monospace !important;
         font-size: 14px !important;
         padding: 8px 10px !important;
@@ -612,14 +790,14 @@ window.__ModuleLoader__.load({
          row; it must wear the same glass. */
       [data-cr-composer] [data-composer-card] button:not([data-cr-send]),
       [data-cr-composer] [data-composer-card] [role="button"] {
-        border: 1px solid rgba(139, 0, 0, 0.70) !important;
+        border: 1px solid color-mix(in srgb, var(--cr-accent) 70%, transparent) !important;
         border-radius: 0 !important;
         color: #fff4f6 !important;
-        background-color: rgba(139, 0, 0, 0.012) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 1%, transparent) !important;
         background-image: linear-gradient(
           180deg,
-          rgba(255, 175, 175, 0.018) 0%,
-          rgba(255, 130, 130, 0.008) 40%,
+          color-mix(in srgb, var(--cr-accent-highlight) 1.8%, transparent) 0%,
+          color-mix(in srgb, var(--cr-accent-highlight) 0.8%, transparent) 40%,
           transparent 100%
         ) !important;
         background-size: 100% 100% !important;
@@ -644,20 +822,20 @@ window.__ModuleLoader__.load({
       [data-cr-composer] [data-cr-send]:focus,
       [data-cr-composer] [data-cr-send]:focus-visible,
       [data-cr-composer] [data-cr-send]:active {
-        border: 1px solid rgba(192, 23, 30, 0.80) !important;
+        border: 1px solid color-mix(in srgb, var(--cr-accent) 80%, transparent) !important;
         border-radius: 0 !important;
         color: #ffffff !important;
         /* A touch stronger than the field so it still reads as the action. */
-        background-color: rgba(139, 0, 0, 0.05) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 5%, transparent) !important;
         background-image: linear-gradient(
           180deg,
-          rgba(255, 175, 175, 0.022) 0%,
-          rgba(255, 130, 130, 0.010) 40%,
+          color-mix(in srgb, var(--cr-accent-highlight) 2.2%, transparent) 0%,
+          color-mix(in srgb, var(--cr-accent-highlight) 1%, transparent) 40%,
           transparent 100%
         ) !important;
         background-size: 100% 100% !important;
         background-repeat: no-repeat !important;
-        box-shadow: 0 0 10px rgba(139, 0, 0, 0.35) !important;
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 35%, transparent) !important;
         outline: 0 !important;
       }
       [data-cr-composer] [data-cr-send] svg {
@@ -765,19 +943,20 @@ window.__ModuleLoader__.load({
          edge glows red; the text-shadow adds the bloom. */
       [data-cr-brand-name] {
         color: #ffffff !important;
-        /* 仿宋 (FangSong), bold. "FangSong" is the family name Windows
-           registers for simfang.ttf; the Chinese alias and the serif tail
-           cover builds that expose it only under the localized name. */
-        font-family: "FangSong", "仿宋", "STFangsong", "华文仿宋", serif !important;
-        font-weight: 700 !important;
-        /* 仿宋 ships regular-weight only, so the bold is synthesized. */
-        font-synthesis: weight !important;
-        -webkit-text-stroke: 1.3px #ff2d2d !important;
+        /* 草檀斋毛泽东字体, bundled with the plugin and served from
+           /cyber-red-ui/fonts/maozedong.ttf. The generic serif tail keeps a
+           readable fallback while the face is still loading. */
+        font-family: "CyberRedBrandFont", "FangSong", "仿宋", serif !important;
+        font-weight: 400 !important;
+        /* The bundled face ships a single weight; asking for 700 would make
+           the browser embolden it and blur the strokes at this size. */
+        font-synthesis: none !important;
+        -webkit-text-stroke: 1.3px var(--cr-accent-bright) !important;
         paint-order: stroke fill !important;
         text-shadow:
-          0 0 8px rgba(255, 45, 45, 0.90),
-          0 0 18px rgba(255, 45, 45, 0.60),
-          0 0 34px rgba(255, 45, 45, 0.35) !important;
+          0 0 8px color-mix(in srgb, var(--cr-accent-glow) 90%, transparent),
+          0 0 18px color-mix(in srgb, var(--cr-accent-glow) 60%, transparent),
+          0 0 34px color-mix(in srgb, var(--cr-accent-glow) 35%, transparent) !important;
       }
       /* The mark itself must never be clipped either. */
       img[data-cr-mark] {
@@ -865,8 +1044,8 @@ window.__ModuleLoader__.load({
         background-color: #0d0d0d !important;
         background-image: none !important;
         color: #fff !important;
-        box-shadow: 0 0 10px rgba(139, 0, 0, 0.525),
-                    inset 0 0 12px rgba(139, 0, 0, 0.277) !important;
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 53%, transparent),
+                    inset 0 0 12px color-mix(in srgb, var(--cr-accent) 28%, transparent) !important;
       }
       [data-cr-sidebar-copy] {
         color: #fff !important;
@@ -878,8 +1057,8 @@ window.__ModuleLoader__.load({
         /* Hover darkens rather than washing red: flat black with the brighter
            crimson glow, so the state still reads without adding a mist. */
         background-color: #0d0d0d !important;
-        box-shadow: 0 0 16px rgba(139, 0, 0, 0.913),
-                    inset 0 0 16px rgba(139, 0, 0, 0.401) !important;
+        box-shadow: 0 0 16px color-mix(in srgb, var(--cr-accent) 91%, transparent),
+                    inset 0 0 16px color-mix(in srgb, var(--cr-accent) 40%, transparent) !important;
       }
       /* Grey veil -> red mist: any translucent neutral scrim in the button. */
       /* The inner veil/overlay/scrim of these buttons also carried a crimson
@@ -897,6 +1076,51 @@ window.__ModuleLoader__.load({
         -webkit-backdrop-filter: none !important;
       }
 
+      /* ---- Other plugins' panels ----------------------------------------
+         Nothing is painted here on purpose. The plugin market and the
+         automation page are separate plugins that must look exactly as they
+         do with this theme switched off, so no rule of ours touches their
+         markup or their colours. */
+
+
+      /* ---- Controls INSIDE the plugin panels stay round ------------------
+         This theme squares off its own sidebar seats, but that shape rule must
+         not follow the user into the panels those seats open: a toggle there
+         is a pill with a round knob, and the panel buttons are rounded too.
+         Scoped to the panels themselves so the sidebar keeps its square
+         treatment — nothing outside those two surfaces is touched.
+
+         The market page has no single root marker of its own, so it is matched
+         through the attributes its cards actually carry (data-market-entry /
+         -version / -detail), which the package does render. The schedule page
+         is matched through its own data-session-schedule-* marks. */
+      [data-market-entry] button,
+      [data-market-entry] [role="switch"],
+      [data-market-version] button,
+      [data-market-version] [role="switch"],
+      [data-market-detail] button,
+      [data-market-detail] [role="switch"],
+      [data-session-schedule-tasks] [role="switch"],
+      [data-session-schedule-tasks] button,
+      [data-session-schedule-task] button,
+      [data-schedule-reminder-entry] button {
+        border-radius: 9999px !important;
+      }
+      [data-market-entry] [role="switch"]::before,
+      [data-market-entry] [role="switch"]::after,
+      [data-market-entry] [role="switch"] > *,
+      [data-market-version] [role="switch"]::before,
+      [data-market-version] [role="switch"]::after,
+      [data-market-version] [role="switch"] > *,
+      [data-market-detail] [role="switch"]::before,
+      [data-market-detail] [role="switch"]::after,
+      [data-market-detail] [role="switch"] > *,
+      [data-session-schedule-tasks] [role="switch"]::before,
+      [data-session-schedule-tasks] [role="switch"]::after,
+      [data-session-schedule-tasks] [role="switch"] > * {
+        border-radius: 9999px !important;
+      }
+
       /* ---- Session rows ------------------------------------------------
          Square corners, and one crimson mist for both the selected session
          and the row under the pointer, replacing the grey veil. */
@@ -905,15 +1129,15 @@ window.__ModuleLoader__.load({
       }
       [data-cr-hot], [data-cr-selected] {
         border-radius: 0 !important;
-        background-color: rgba(139, 0, 0, 0.277) !important;
+        background-color: color-mix(in srgb, var(--cr-accent) 28%, transparent) !important;
         background-image: linear-gradient(
           to bottom,
-          rgba(139, 0, 0, 0.138),
-          rgba(139, 0, 0, 0.324)
+          color-mix(in srgb, var(--cr-accent) 14%, transparent),
+          color-mix(in srgb, var(--cr-accent) 32%, transparent)
         ) !important;
-        border-color: rgba(139, 0, 0, 0.835) !important;
-        box-shadow: inset 0 0 0 1px rgba(139, 0, 0, 0.835),
-                    0 0 14px rgba(139, 0, 0, 0.448) !important;
+        border-color: color-mix(in srgb, var(--cr-accent) 84%, transparent) !important;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cr-accent) 84%, transparent),
+                    0 0 14px color-mix(in srgb, var(--cr-accent) 45%, transparent) !important;
         backdrop-filter: blur(3px) saturate(1.25) !important;
       }
 
@@ -1087,8 +1311,8 @@ window.__ModuleLoader__.load({
         background: linear-gradient(
           to bottom,
           transparent,
-          rgba(139, 0, 0, 0.145) 55%,
-          rgba(139, 0, 0, 0.215) 92%,
+          color-mix(in srgb, var(--cr-accent) 14%, transparent) 55%,
+          color-mix(in srgb, var(--cr-accent) 22%, transparent) 92%,
           transparent
         );
         animation: cr-sweep 7.5s linear infinite;
@@ -1149,8 +1373,7 @@ window.__ModuleLoader__.load({
         content: "";
         position: absolute;
         inset: 0;
-        background: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 100%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M10 12 H212 L230 30 H388 M612 30 H770 L788 12 H948 L966 30 H990%27 fill%3D%27none%27 stroke%3D%27%23ff5c5c%27 stroke-width%3D%272%27 stroke-opacity%3D%27.95%27%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat;
-        pointer-events: none;
+        color: var(--cr-accent); background-color: transparent; -webkit-mask-image: none; mask-image: none; background-image: var(--cr-frame-topbar, url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 100%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M10 12 H212 L230 30 H388 M612 30 H770 L788 12 H948 L966 30 H990%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-width%3D%272%27 stroke-opacity%3D%271%27%2F%3E%3C%2Fsvg%3E")); background-size: 100% 100%; background-repeat: no-repeat;pointer-events: none;
         z-index: 0;
       }
       .cr-decor__status { position: relative; z-index: 1; }
@@ -1186,15 +1409,15 @@ window.__ModuleLoader__.load({
         height: 1px;
         background: var(--cr-red) !important;
         background-image: none !important;
-        box-shadow: 0 0 10px rgba(139, 0, 0, 0.950),
-                    0 0 22px rgba(139, 0, 0, 0.603);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 95%, transparent),
+                    0 0 22px color-mix(in srgb, var(--cr-accent) 60%, transparent);
       }
       html:not([data-windows-titlebar]) .cr-decor__rule {
         display: none;
       }
       .cr-decor__status {
-        color: #ff2b2b;
-        text-shadow: 0 0 14px rgba(255, 43, 43, 0.85);
+        color: var(--cr-accent-bright);
+        text-shadow: 0 0 14px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1207,8 +1430,8 @@ window.__ModuleLoader__.load({
         height: 7px;
         margin: 0 9px 0 0;
         border-radius: 50%;
-        background: #ff2b2b;
-        box-shadow: 0 0 10px rgba(255, 43, 43, 0.90);
+        background: var(--cr-accent-bright);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent-bright) 90%, transparent);
         animation: cr-blink 1.6s steps(2, end) infinite;
         vertical-align: middle;
       }
@@ -1351,15 +1574,15 @@ window.__ModuleLoader__.load({
        drop-shadows bloom red mist around the silhouette. */
     const MARK_MIST_FILTER =
       'brightness(0.72) saturate(1.38) contrast(1.08) blur(0.35px) ' +
-      'drop-shadow(0 0 5px rgba(139, 0, 0, 0.950)) ' +
-      'drop-shadow(0 0 13px rgba(139, 0, 0, 0.835))';
+      'drop-shadow(0 0 5px color-mix(in srgb, var(--cr-accent) 95%, transparent)) ' +
+      'drop-shadow(0 0 13px color-mix(in srgb, var(--cr-accent) 84%, transparent))';
 
     /* The East Asia emblem is raised hard: at 24px its detail disappears
        unless pushed well above the surrounding crimson. */
     const MARK_BRIGHT_FILTER =
       'brightness(2.35) saturate(1.45) contrast(1.20) ' +
-      'drop-shadow(0 0 5px rgba(139, 0, 0, 0.95)) ' +
-      'drop-shadow(0 0 14px rgba(139, 0, 0, 0.75))';
+      'drop-shadow(0 0 5px color-mix(in srgb, var(--cr-accent) 95%, transparent)) ' +
+      'drop-shadow(0 0 14px color-mix(in srgb, var(--cr-accent) 75%, transparent))';
 
     const markSrc = function (variant) {
       if (variant === BRAND_MARK_EMBLEM) return EMBLEM_MARK_URL;
@@ -1460,10 +1683,12 @@ window.__ModuleLoader__.load({
           fontSynthesis: 'weight',
           letterSpacing: '0.03em',
           color: '#ffffff',
-          WebkitTextStroke: '1.3px #ff2d2d',
+          WebkitTextStroke: '1.3px var(--cr-accent-bright)',
           paintOrder: 'stroke fill',
           textShadow:
-            '0 0 8px rgba(255, 45, 45, 0.90), 0 0 18px rgba(255, 45, 45, 0.60), 0 0 34px rgba(255, 45, 45, 0.35)',
+            '0 0 8px color-mix(in srgb, var(--cr-accent-glow) 90%, transparent), '
+            + '0 0 18px color-mix(in srgb, var(--cr-accent-glow) 60%, transparent), '
+            + '0 0 34px color-mix(in srgb, var(--cr-accent-glow) 35%, transparent)',
           whiteSpace: 'nowrap',
           lineHeight: 1.25,
           /* Explicit reset: keep the wordmark free of any frame the shell or
@@ -1624,6 +1849,49 @@ window.__ModuleLoader__.load({
          already in place, untouched. */
       root.style.setProperty('--cr-rail-w', width + 'px');
 
+      /* Align the rail's top edge with the LEFT SIDEBAR'S CRIMSON RULE.
+         That rule is not the sidebar's outer edge: it is painted by
+         [data-cr-panel="left"]::before, which is inset by the panel frame's
+         own --cr-panel-inset (6px). Measuring the sidebar box itself put the
+         rail 6px too high, so the inset is added here.
+
+         Falls back to the bare sidebar top when the panel frame has not been
+         marked yet (the marking pass runs after mount). */
+      try {
+        /* A zero-width anchor is useless for measuring: the shell nests its
+           columns in wrapper layers, and one can have no box at all. Try the
+           framed panel first, then the plain sidebar containers, and take the
+           first element that actually has a box. */
+        const candidates = [
+          document.querySelector('[data-cr-panel="left"]'),
+          document.querySelector('[data-slot="sidebar"]'),
+          document.querySelector('aside'),
+          document.querySelector('nav'),
+          document.querySelector('[role="navigation"]'),
+        ].filter(Boolean);
+
+        let sidebar = null;
+        for (const el of candidates) {
+          const b = el.getBoundingClientRect();
+          if (b.width > 0 && b.height > 0) { sidebar = el; break; }
+        }
+
+        if (sidebar) {
+          const box = sidebar.getBoundingClientRect();
+          /* The 6px inset belongs to the framed panel only; a bare sidebar has
+             no inner rule to line up with. */
+          const inset = sidebar.hasAttribute('data-cr-panel')
+            ? (parseFloat(getComputedStyle(sidebar).getPropertyValue('--cr-panel-inset')) || 6)
+            : 0;
+          const ruleTop = Math.round(box.top + inset);
+          if (ruleTop >= 0 && ruleTop < window.innerHeight) {
+            root.style.setProperty('--cr-rail-top', ruleTop + 'px');
+          } else {
+            root.style.removeProperty('--cr-rail-top');
+          }
+        }
+      } catch (e) { /* frame not mounted yet: the stylesheet fallback applies */ }
+
       if (open && frame) {
         /* Mark the frame so the stylesheet can select it, and publish the
            first two tracks (sidebar, conversation) from the shell's own
@@ -1740,15 +2008,15 @@ window.__ModuleLoader__.load({
         width: '100%',
         padding: '6px 8px',
         borderRadius: 0,
-        border: '1px solid ' + (open ? '#8b0000' : 'rgba(139, 0, 0, 0.758)'),
+        border: '1px solid ' + (open ? 'var(--cr-accent)' : 'color-mix(in srgb, var(--cr-accent) 76%, transparent)'),
         background: open
-          ? 'rgba(139, 0, 0, 0.370)'
-          : hover ? 'rgba(139, 0, 0, 0.246)' : 'rgba(139, 0, 0, 0.138)',
+          ? 'color-mix(in srgb, var(--cr-accent) 37%, transparent)'
+          : hover ? 'color-mix(in srgb, var(--cr-accent) 25%, transparent)' : 'color-mix(in srgb, var(--cr-accent) 14%, transparent)',
         color: '#fff',
         cursor: 'pointer',
         font: 'inherit',
         boxShadow: hover || open
-          ? '0 0 12px rgba(139, 0, 0, 0.758), inset 0 0 10px rgba(139, 0, 0, 0.292)'
+          ? '0 0 12px color-mix(in srgb, var(--cr-accent) 76%, transparent), inset 0 0 10px color-mix(in srgb, var(--cr-accent) 29%, transparent)'
           : 'none',
         transition: 'background .15s, box-shadow .15s, border-color .15s',
       };
@@ -1776,16 +2044,29 @@ window.__ModuleLoader__.load({
         flex: none;
         width: 100%;
         max-width: 100%;
-        height: var(--cr-player-height, 57px);
+        /* The panel grew one row (the volume slider), so its height is derived
+           from its contents instead of being pinned to 57px. A fixed height
+           with overflow:hidden would clip the slider away entirely.
+           --cr-player-height is kept as the floor so an empty/disabled player
+           does not collapse. */
+        height: auto;
         min-height: var(--cr-player-height, 57px);
         box-sizing: border-box;
         display: grid;
         gap: 5px;
         padding: 6px 8px 7px;
         margin: 0 0 7px;
-        background: linear-gradient(180deg, rgba(58, 8, 12, .88), rgba(13, 13, 13, .96));
-        border: 1px solid rgba(139, 0, 0, .72);
-        box-shadow: inset 0 0 12px rgba(139, 0, 0, .2), 0 0 10px rgba(139, 0, 0, .16);
+        /* The panel tint is derived from the accent, not set independently.
+           The accent is a bright line colour, so it is mixed down toward
+           near-black before use: 28% accent keeps a clear family resemblance
+           while staying dark enough for white text at any hue. */
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--cr-accent) 28%, #16161a),
+          color-mix(in srgb, var(--cr-accent) 9%, #0d0d0d)
+        );
+        border: 1px solid color-mix(in srgb, var(--cr-accent) 72%, transparent);
+        box-shadow: inset 0 0 12px color-mix(in srgb, var(--cr-accent) 20%, transparent), 0 0 10px color-mix(in srgb, var(--cr-accent) 16%, transparent);
         color: #fff;
         overflow: hidden;
       }
@@ -1807,8 +2088,8 @@ window.__ModuleLoader__.load({
         min-width: 0;
         height: var(--cr-player-control-height, 25px);
         padding: 0;
-        border: 1px solid rgba(255, 68, 76, .72);
-        background: rgba(139, 0, 0, .32);
+        border: 1px solid color-mix(in srgb, var(--cr-accent-bright) 72%, transparent);
+        background: color-mix(in srgb, var(--cr-accent) 32%, transparent);
         color: #fff;
         font-size: 12px;
         line-height: 1;
@@ -1816,10 +2097,96 @@ window.__ModuleLoader__.load({
       }
       .cr-music-player__button:hover,
       .cr-music-player__button:focus-visible {
-        background: rgba(218, 18, 28, .64);
-        box-shadow: 0 0 8px rgba(255, 48, 48, .48);
+        background: color-mix(in srgb, var(--cr-accent-glow) 64%, transparent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent-bright) 48%, transparent);
       }
       .cr-music-player audio { display: none; }
+
+      /* ---- Volume row ------------------------------------------------
+         Sits directly under the three transport buttons. The slider is a
+         native range input so keyboard and wheel both work; the crimson
+         track is painted with a linear-gradient whose stop follows the
+         value, which is what lets the filled part read differently from
+         the empty part without a second element. */
+      .cr-music-player__volume {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+      }
+      .cr-music-player__volume-icon {
+        flex: none;
+        color: #ffb6bd;
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+      }
+      .cr-music-player__volume-icon:hover { color: var(--cr-accent-bright); }
+      .cr-music-player__range {
+        min-width: 0;
+        width: 100%;
+        height: 14px;
+        margin: 0;
+        padding: 0;
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+        outline: none;
+      }
+      .cr-music-player__range::-webkit-slider-runnable-track {
+        height: 3px;
+        background: linear-gradient(
+          to right,
+          var(--cr-accent-bright) 0%,
+          var(--cr-accent-bright) var(--cr-vol, 60%),
+          color-mix(in srgb, var(--cr-accent) 32%, transparent) var(--cr-vol, 60%),
+          color-mix(in srgb, var(--cr-accent) 32%, transparent) 100%
+        );
+        box-shadow: 0 0 6px color-mix(in srgb, var(--cr-accent-bright) 38%, transparent);
+      }
+      .cr-music-player__range::-moz-range-track {
+        height: 3px;
+        background: color-mix(in srgb, var(--cr-accent) 32%, transparent);
+      }
+      .cr-music-player__range::-moz-range-progress {
+        height: 3px;
+        background: var(--cr-accent-bright);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--cr-accent-bright) 38%, transparent);
+      }
+      .cr-music-player__range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 7px;
+        height: 11px;
+        margin-top: -4px;
+        border: 0;
+        border-radius: 0;
+        background: var(--cr-accent-bright);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
+      }
+      .cr-music-player__range::-moz-range-thumb {
+        width: 7px;
+        height: 11px;
+        border: 0;
+        border-radius: 0;
+        background: var(--cr-accent-bright);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
+      }
+      .cr-music-player__range:focus-visible {
+        outline: 1px solid var(--cr-accent-bright);
+        outline-offset: 2px;
+      }
+      .cr-music-player__volume-value {
+        flex: none;
+        min-width: 22px;
+        text-align: right;
+        color: #ffb6bd;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+      }
     `;
 
     function MusicPlayer() {
@@ -1830,6 +2197,17 @@ window.__ModuleLoader__.load({
       const [index, setIndex] = React.useState(0);
       const [playing, setPlaying] = React.useState(false);
       const current = tracks[index] || null;
+
+      /* The slider reads the shared level, which is also what the settings
+         previews use, so the two never disagree. */
+      const volume = musicVolume;
+      const muted = musicMuted;
+      React.useEffect(function () {
+        const audio = audioRef.current;
+        if (!audio) return undefined;
+        audio.volume = effectiveMusicVolume();
+        return undefined;
+      }, [volume, muted, current && current.id]);
 
       /* Settings previews share the sidebar player's pause action, so a
          preview can never run over the currently playing track. */
@@ -1852,6 +2230,9 @@ window.__ModuleLoader__.load({
         const audio = audioRef.current;
         if (!audio || !current) return undefined;
         audio.src = current.url;
+        /* A fresh element starts at volume 1; apply the stored level before
+           load so the first second of a track is not louder than the rest. */
+        audio.volume = effectiveMusicVolume();
         audio.load();
         return undefined;
       }, [current && current.id]);
@@ -1913,6 +2294,36 @@ window.__ModuleLoader__.load({
             h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': playing ? '暂停' : '播放', onClick: toggle }, playing ? '❚❚' : '▶'),
             h('button', { type: 'button', className: 'cr-music-player__button', 'aria-label': '下一首', onClick: next }, '▶'),
           ),
+          h('div', { className: 'cr-music-player__volume' },
+            h('span', {
+              className: 'cr-music-player__volume-icon',
+              role: 'button',
+              tabIndex: 0,
+              title: muted ? '取消静音' : '静音',
+              'aria-label': muted ? '取消静音' : '静音',
+              'aria-pressed': muted,
+              onClick: function () { toggleMusicMute(); },
+              onKeyDown: function (event) {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleMusicMute();
+              },
+            }, muted || volume === 0 ? '🔇' : (volume < 0.5 ? '🔈' : '🔊')),
+            h('input', {
+              type: 'range',
+              className: 'cr-music-player__range',
+              min: 0,
+              max: 100,
+              step: 1,
+              value: Math.round((muted ? 0 : volume) * 100),
+              'aria-label': '音量',
+              title: '音量 ' + Math.round(volume * 100) + '%',
+              style: { '--cr-vol': Math.round((muted ? 0 : volume) * 100) + '%' },
+              onChange: function (event) { setMusicVolume(Number(event.target.value) / 100); },
+            }),
+            h('span', { className: 'cr-music-player__volume-value' },
+              (muted ? '静音' : Math.round(volume * 100) + '%'))
+          ),
           h('audio', { ref: audioRef, preload: 'auto' })
         )
       );
@@ -1952,7 +2363,7 @@ window.__ModuleLoader__.load({
         background: 'transparent',
         boxShadow: 'none',
         outline: 'none',
-        color: hover || focus ? '#ff4d4d' : '#8b0000',
+        color: hover || focus ? 'var(--cr-accent-bright)' : 'var(--cr-accent)',
         textShadow: focus ? '0 0 8px rgba(255, 77, 77, 0.9)' : 'none',
         font: 'inherit',
         /* The label's own size and line-height, so the × is not offset. */
@@ -1982,7 +2393,20 @@ window.__ModuleLoader__.load({
     const RAIL_CSS = `
       .cr-rail {
         position: fixed;
-        top: 46px;
+        /* The box starts level with the sidebar's crimson rule. Its own rule
+           is painted 10px inside (see ::before below), so the rule is pulled
+           back up to that same row with a negative top instead of moving the
+           whole panel: the panel keeps its original height and position, only
+           the frame line moves.
+
+           46px is only the fallback for the first frame. */
+        top: var(--cr-rail-top, 46px);
+        /* The rule is painted on the viewport layer by .cr-rail-frame; the
+           aside's CONTENT starts at the rule's 14px corner notch, so the
+           portrait and every card below sit directly inside the frame instead
+           of under the head's extra padding. */
+        padding-top: 0;
+        margin-top: 0;
         right: 0;
         bottom: 0;
         width: var(--cr-rail-w, 320px);
@@ -1993,49 +2417,58 @@ window.__ModuleLoader__.load({
         background: #0d0d0d;
         border: 1px solid transparent;
         box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.95),
-                    inset 0 0 22px rgba(139, 0, 0, 0.277),
-                    0 0 22px rgba(139, 0, 0, 0.24);
+                    inset 0 0 22px color-mix(in srgb, var(--cr-accent) 28%, transparent),
+                    0 0 22px color-mix(in srgb, var(--cr-accent) 24%, transparent);
         pointer-events: auto;
-        overflow: hidden;
+        /* The rail is a scrolling column. With overflow:hidden the lower cards
+           were simply unreachable whenever the window was short; now the
+           whole rail scrolls and only the decorative frame is clipped.
+           overflow-y:auto clips absolutely positioned children to the padding
+           box, which is why the frame's top rule is drawn by a sibling layer
+           (.cr-rail-frame) rather than by ::before — a pseudo-element pulled
+           above the box would be cut off. */
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--cr-accent) 85%, transparent) transparent;
       }
+      /* Same crimson scrollbar treatment the shell uses elsewhere. The track
+         stays transparent so the frame artwork shows through. */
+      .cr-rail::-webkit-scrollbar {
+        width: 8px;
+      }
+      .cr-rail::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .cr-rail::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--cr-accent) 85%, transparent);
+        border-radius: 0;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cr-accent-glow) 45%, transparent);
+      }
+      .cr-rail::-webkit-scrollbar-thumb:hover {
+        background: color-mix(in srgb, var(--cr-accent-glow) 95%, transparent);
+      }
+      /* ---- Frame rule ------------------------------------------------
+         Painted by .cr-rail-frame, a fixed sibling of the scrolling aside.
+         The rail scrolls (overflow-y:auto), and that clips absolutely
+         positioned children to its padding box, so the frame cannot be a
+         ::before of the rail itself. Sitting on the viewport lets its top
+         edge meet the sidebar rule while the aside keeps its own height. */
       .cr-rail::before {
-        content: "";
-        position: absolute;
-        inset: 10px;
-        background: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H930 L992 70 V930 L930 992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.95%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat;
+        content: none !important;
+        display: none !important;
+      }
+      .cr-rail-frame {
+        position: fixed;
+        top: var(--cr-rail-top, 46px);
+        right: var(--cr-rail-frame-inset, 10px);
+        bottom: var(--cr-rail-frame-inset, 10px);
+        width: calc(var(--cr-rail-w, 320px) - 2 * var(--cr-rail-frame-inset, 10px));
+        box-sizing: border-box;
         pointer-events: none;
         z-index: 4;
-        -webkit-clip-path: polygon(
-          0 14px, 14px 0,
-          calc(100% - 14px) 0, 100% 14px,
-          100% calc(100% - 14px), calc(100% - 14px) 100%,
-          14px 100%, 0 calc(100% - 14px)
-        );
-        clip-path: polygon(
-          0 14px, 14px 0,
-          calc(100% - 14px) 0, 100% 14px,
-          100% calc(100% - 14px), calc(100% - 14px) 100%,
-          14px 100%, 0 calc(100% - 14px)
-        );
-      }
-      /* The rail's inner frame has a square lower-right corner; the other
-         three corners retain the reference diagonal treatment. */
-      .cr-rail::before {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H930 L992 70 V992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.95%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E");
-        -webkit-clip-path: polygon(
-          14px 0, calc(100% - 14px) 0, 100% 14px,
-          100% 100%, 0 100%, 0 calc(100% - 14px), 0 14px
-        );
-        clip-path: polygon(
-          14px 0, calc(100% - 14px) 0, 100% 14px,
-          100% 100%, 0 100%, 0 calc(100% - 14px), 0 14px
-        );
-      }
-      /* Square both right corners of the rail inner frame while retaining
-         the diagonal cuts on its left side. */
-      .cr-rail::before {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H992 V992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%27.95%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E");
-        -webkit-clip-path: polygon(
+        color: var(--cr-accent); background-color: transparent; -webkit-mask-image: none; mask-image: none; background-image: var(--cr-frame-rail, url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 1000 1000%27 preserveAspectRatio%3D%27none%27%3E%3Cpath d%3D%27M70 8 H992 V992 H70 L8 930 V70 Z%27 fill%3D%27none%27 stroke%3D%27%238b0000%27 stroke-opacity%3D%271%27 stroke-width%3D%272%27%2F%3E%3C%2Fsvg%3E")); background-size: 100% 100%; background-repeat: no-repeat;-webkit-clip-path: polygon(
           14px 0, 100% 0, 100% 100%, 0 100%,
           0 calc(100% - 14px), 0 14px
         );
@@ -2044,32 +2477,48 @@ window.__ModuleLoader__.load({
           0 calc(100% - 14px), 0 14px
         );
       }
-      /* Keep every animated rail element inside the decorative inner frame. */
+      /* Keep every animated rail element inside the decorative inner frame.
+         scale() shrinks the painted box while the layout box keeps its size,
+         so a uniform 0.94 left a transparent band between stacked cards even
+         with zero margins. Only the horizontal axis is scaled here: the cards
+         stay inset from the frame's vertical rules, and their top/bottom edges
+         keep touching so the stack reads as one continuous column. */
       .cr-rail > :not(.cr-rail__scan) {
         position: relative;
         z-index: 5;
         width: calc(100% - 16px);
         margin-left: 8px;
         margin-right: 8px;
-        transform: scale(0.94);
+        transform: scaleX(0.94);
         transform-origin: center top;
       }
-      /* Keep the animation in the rail's flow, pinned to the inner frame's
-         bottom without a separate card surface. */
+      /* Sits directly under the simulated cards, in the same stack. */
       .cr-rail > .cr-ticker {
         position: relative;
-        flex: 1 1 auto;
+        /* Content-sized, not stretched. flex:1 1 auto made this block swallow
+           all the leftover column height, and justify-content:flex-end then
+           pushed its contents to the very bottom of that stretched box — so
+           the telemetry floated far below the card above it. */
+        flex: none;
         min-height: 0;
         left: auto;
         right: auto;
         bottom: auto;
-        width: calc(100% - 20px) !important;
-        max-width: none;
-        margin: 0 10px 10px !important;
-        padding: 8px !important;
+        /* Same width formula as the cards above, so the column lines up. */
+        width: calc(100% - 16px) !important;
+        max-width: calc(100% - 16px) !important;
+        /* Flush against the card above, and inset by the same 8px as the
+           cards so the whole stack shares one left/right margin. */
+        margin: 0 8px 8px !important;
+        /* No top padding: the telemetry head starts immediately after the card
+           above it. */
+        padding: 0 8px 8px !important;
         gap: 6px;
-        justify-content: flex-end;
-        transform: translateY(-30px) !important;
+        justify-content: flex-start;
+        /* Keep the rail-wide horizontal inset. Setting this to none would drop
+           the scaleX(0.94) the shared rule applies, leaving this block 8px
+           wider than the cards it sits under. */
+        transform: scaleX(0.94) !important;
         z-index: 6 !important;
         overflow: visible !important;
         background: transparent;
@@ -2092,13 +2541,13 @@ window.__ModuleLoader__.load({
         z-index: 3;
         background: linear-gradient(
           to bottom,
-          rgba(139, 0, 0, 0.060) 0%,
-          rgba(139, 0, 0, 0.339) 35%,
-          rgba(139, 0, 0, 0.42) 50%,
-          rgba(139, 0, 0, 0.339) 65%,
-          rgba(139, 0, 0, 0.060) 100%
+          color-mix(in srgb, var(--cr-accent) 6%, transparent) 0%,
+          color-mix(in srgb, var(--cr-accent) 34%, transparent) 35%,
+          color-mix(in srgb, var(--cr-accent) 42%, transparent) 50%,
+          color-mix(in srgb, var(--cr-accent) 34%, transparent) 65%,
+          color-mix(in srgb, var(--cr-accent) 6%, transparent) 100%
         );
-        box-shadow: 0 0 24px rgba(139, 0, 0, 0.603);
+        box-shadow: 0 0 24px color-mix(in srgb, var(--cr-accent) 60%, transparent);
         animation: cr-rail-scan 4.2s linear infinite;
         will-change: transform;
         -webkit-clip-path: polygon(
@@ -2131,15 +2580,19 @@ window.__ModuleLoader__.load({
         gap: 8px;
         padding: 12px;
         border: 0;
-        border-bottom: 1px solid rgba(139, 0, 0, 0.82);
-        box-shadow: inset 0 0 12px rgba(139, 0, 0, 0.16),
-                    0 0 10px rgba(139, 0, 0, 0.14);
-        font-family: '"Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif';
+        border-bottom: 1px solid color-mix(in srgb, var(--cr-accent) 82%, transparent);
+        box-shadow: inset 0 0 12px color-mix(in srgb, var(--cr-accent) 16%, transparent),
+                    0 0 10px color-mix(in srgb, var(--cr-accent) 14%, transparent);
+        /* Same bundled face as the sidebar wordmark (草檀斋毛泽东字体). */
+        font-family: "CyberRedBrandFont", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 400;
+        font-synthesis: none;
         letter-spacing: 0.04em;
-        color: #a81818;
-        text-shadow: 0 0 10px rgba(139, 0, 0, 0.950);
+        /* Bright: the label sits on a near-black header, so the accent is
+           mostly lifted to white to stay readable at this size. */
+        color: color-mix(in srgb, var(--cr-accent) 28%, #ffffff);
+        text-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 95%, transparent);
         flex: none;
       }
       /* The user-editable brand name sits where the rail title used to be. */
@@ -2158,14 +2611,22 @@ window.__ModuleLoader__.load({
         padding: 0 28px;
         box-sizing: border-box;
         text-align: center;
-        /* 仿宋, bold — matches the sidebar brand name. */
-        font-family: "FangSong", "仿宋", "STFangsong", "华文仿宋", serif;
+        /* Same bundled face as the sidebar wordmark (草檀斋毛泽东字体). This
+           element is the one that actually renders the label — .cr-rail__head
+           is only its wrapper, which is why setting the face there had no
+           visible effect. */
+        font-family: "CyberRedBrandFont", "FangSong", "仿宋", serif;
         font-size: 20px;
-        font-weight: 700;
+        /* Emphasised with a stroke rather than a synthesized bold; see the
+           later .cr-rail__form block for why. */
+        font-weight: 400;
+        font-synthesis: none;
+        -webkit-text-stroke: 0.85px currentColor;
+        paint-order: stroke fill;
         letter-spacing: 0.06em;
         line-height: 1.4;
-        color: #ff2b2b;
-        text-shadow: 0 0 12px rgba(255, 43, 43, 0.85);
+        color: var(--cr-accent-bright);
+        text-shadow: 0 0 12px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2182,24 +2643,43 @@ window.__ModuleLoader__.load({
         max-width: 100%;
         padding-left: 22px;
         padding-right: 22px;
-        /* 仿宋, bold — 仿宋 has no bold face, so the weight is synthesized. */
-        font-family: "FangSong", "仿宋", "STFangsong", "华文仿宋", serif;
-        font-weight: 700;
-        font-synthesis: weight;
+        /* Same bundled face as the sidebar wordmark (草檀斋毛泽东字体). This
+           later block wins over the earlier .cr-rail__form rule, so the face
+           has to be set here as well — editing only the first one is why the
+           label kept its old type. */
+        font-family: "CyberRedBrandFont", "FangSong", "仿宋", serif;
+        /* The bundled face has ONE weight. Asking for 700 makes the browser
+           synthesise bold, which smears a brush face into mush, so the weight
+           stays 400 and the emphasis is drawn as a hairline stroke instead —
+           the same technique the sidebar wordmark uses. */
+        font-weight: 400;
+        font-synthesis: none;
+        -webkit-text-stroke: 0.85px currentColor;
+        paint-order: stroke fill;
         font-size: 20px;
         letter-spacing: 0.03em;
         overflow: visible;
         text-overflow: clip;
-        color: #ff2b2b;
-        text-shadow: 0 0 10px rgba(255, 43, 43, 0.85);
+        color: var(--cr-accent-bright);
+        text-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
         background: transparent;
         box-shadow: none;
       }
-      /* Drop the editable line below the top edge of the inset frame. */
+      /* The editable line sits in the frame's top corner. It is absolutely
+         positioned so it does NOT push the portrait down: the avatar and
+         every card below start at the rule's turning point instead of below
+         the head's own box. */
       .cr-rail > .cr-rail__head {
-        margin-top: 10px;
-        padding-top: 16px;
-        padding-bottom: 10px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 6;
+        /* Compact vertical padding; the line floats in the corner notch. */
+        margin-top: 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        pointer-events: auto;
       }
       /* The seat for future content. Every child must be able to shrink: the
          track is only ~300px on a normal window and far narrower when the
@@ -2208,8 +2688,9 @@ window.__ModuleLoader__.load({
          A compact 2x2 grid of pixel readings that hops upward row by row.
          It stays in normal layout flow and clips its contents. */
       .cr-ticker {
-        /* Sits last in the column, so it rests on the rail's bottom edge. */
-        margin-top: auto;
+        /* Follows the card stack directly; no auto margin, which would push it
+           to the foot of the column and leave a void above it. */
+        margin-top: 0;
         flex: none;
         position: relative;
         box-sizing: border-box;
@@ -2242,8 +2723,12 @@ window.__ModuleLoader__.load({
       @media (max-height: 760px) {
         .cr-rail > .cr-ticker {
           margin-bottom: 8px !important;
-          padding: 4px !important;
-          transform: translateY(-75px) !important;
+          /* Same shape as the base rule: no top padding, so the block still
+             joins the card above it on short windows. */
+          padding: 0 4px 4px !important;
+          /* The -75px lift is gone, but the horizontal inset stays so the
+             block keeps the same width as the cards on short windows too. */
+          transform: scaleX(0.94) !important;
           overflow: visible !important;
         }
         .cr-rail .cr-ticker__head { gap: 2px; }
@@ -2264,12 +2749,12 @@ window.__ModuleLoader__.load({
       .cr-ticker__head-rule {
         width: 100%;
         height: 1px;
-        background: #8b0000;
-        box-shadow: 0 0 8px rgba(139, 0, 0, 0.913);
+        background: var(--cr-accent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent) 91%, transparent);
         flex: none;
       }
       .cr-ticker__head-text {
-        color: #ff2b2b;
+        color: var(--cr-accent-bright);
         font-family: "Segoe UI Variable Display", "Segoe UI",
                      "Microsoft YaHei UI", system-ui, sans-serif;
         font-size: 10px;
@@ -2282,7 +2767,7 @@ window.__ModuleLoader__.load({
         text-overflow: ellipsis;
         max-width: 100%;
         min-width: 0;
-        text-shadow: 0 0 8px rgba(255, 43, 43, 0.85);
+        text-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent-bright) 85%, transparent);
       }
       .cr-matrix {
         display: flex;
@@ -2308,7 +2793,7 @@ window.__ModuleLoader__.load({
         gap: 10px;
         min-width: 0;
         /* Blood red: deliberately distinct from the UI's neon crimson. */
-        color: #8b0000;
+        color: var(--cr-accent);
       }
       /* Extra spacing between the two numbers of one pair. */
       .cr-matrix__pad {
@@ -2342,6 +2827,11 @@ window.__ModuleLoader__.load({
         flex: none;
         position: relative;
         line-height: 0;
+        /* The head label floats over the corner (absolute, ~45px tall), so the
+           artwork must clear it: the margin matches the head's occupied height,
+           which puts the portrait's top edge just under the label and at the
+           frame rule's straight section, past the 14px corner notch. */
+        margin-top: 46px;
       }
       .cr-rail__portrait {
         display: block;
@@ -2349,20 +2839,22 @@ window.__ModuleLoader__.load({
         /* The band takes the artwork's own ratio, so nothing is cropped and
            the portrait reads complete. */
         height: auto;
-        box-shadow: 0 0 14px rgba(139, 0, 0, 0.494);
+        box-shadow: 0 0 14px color-mix(in srgb, var(--cr-accent) 49%, transparent);
       }
       /* The separator: a full-width crimson rule that splits the portrait
          band from the content area. It is pulled out past the rail's own
          border-left so its left end meets the vertical divider at a clean
          corner instead of stopping 1px short of it. */
       .cr-rail__figure-rule {
-        margin-top: 10px;
+        /* Sits flush under the portrait and flush above the monitor card, so
+           the artwork, the rule and the card stack read as one column. */
+        margin-top: 0;
         margin-left: 0;
         margin-right: 0;
         height: 1px;
         background: var(--cr-red);
-        box-shadow: 0 0 10px rgba(139, 0, 0, 0.950),
-                    0 0 22px rgba(139, 0, 0, 0.603);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 95%, transparent),
+                    0 0 22px color-mix(in srgb, var(--cr-accent) 60%, transparent);
       }
       /* Live host telemetry. The panel stays inside the rail's inset frame
          and uses the same crimson glass treatment as the surrounding UI. */
@@ -2370,18 +2862,24 @@ window.__ModuleLoader__.load({
         flex: none;
         box-sizing: border-box;
         width: calc(100% - 16px) !important;
-        margin: -24px 8px 8px !important;
+        /* Flush above and below: this panel joins the portrait's separator
+           rule on its top edge and the calendar card on its bottom edge, so
+           the whole rail reads as one continuous stack. */
+        margin: 0 8px 0 !important;
         padding: 10px 10px 9px;
         background:
           linear-gradient(180deg, rgba(70, 70, 70, 0.34), rgba(20, 4, 8, 0.88)),
-          repeating-linear-gradient(135deg, rgba(255, 44, 49, 0.055) 0 1px, transparent 1px 8px);
+          repeating-linear-gradient(135deg, color-mix(in srgb, var(--cr-accent-bright) 6%, transparent) 0 1px, transparent 1px 8px);
         border: 0;
-        box-shadow: inset 0 0 16px rgba(139, 0, 0, 0.22),
-                    0 0 14px rgba(139, 0, 0, 0.18);
+        box-shadow: inset 0 0 16px color-mix(in srgb, var(--cr-accent) 22%, transparent),
+                    0 0 14px color-mix(in srgb, var(--cr-accent) 18%, transparent);
         z-index: 3 !important;
         -webkit-clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
         clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
-        transform: translateY(-3px) !important;
+        /* Vertical nudge removed, horizontal inset kept: the shared rule's
+           scaleX(0.94) is what aligns this panel's edges with the cards below
+           it, so overwriting the transform with none made it 8px wider. */
+        transform: scaleX(0.94) !important;
         transform-origin: center;
       }
       .cr-system-monitor::after {
@@ -2391,8 +2889,8 @@ window.__ModuleLoader__.load({
         right: 9px;
         bottom: 0;
         height: 1px;
-        background: rgba(139, 0, 0, 0.78);
-        box-shadow: 0 0 8px rgba(255, 48, 48, 0.72);
+        background: color-mix(in srgb, var(--cr-accent) 78%, transparent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent-bright) 72%, transparent);
         pointer-events: none;
       }
       .cr-system-monitor__head {
@@ -2401,12 +2899,14 @@ window.__ModuleLoader__.load({
         justify-content: space-between;
         gap: 8px;
         margin-bottom: 8px;
-        color: #ff4a4a;
+        /* The whole readout block — title, state and meter values — belongs to
+           the monitor colour, not the frame accent. */
+        color: var(--cr-monitor-tone);
         font-family: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", sans-serif;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.12em;
-        text-shadow: 0 0 8px rgba(255, 48, 48, 0.9);
+        text-shadow: 0 0 8px color-mix(in srgb, var(--cr-monitor-tone) 90%, transparent);
       }
       .cr-system-monitor__title {
         display: inline-flex;
@@ -2420,9 +2920,9 @@ window.__ModuleLoader__.load({
         width: 14px;
         height: 9px;
         flex: none;
-        background: #ff3030;
+        background: var(--cr-monitor-tone);
         border-radius: 2px;
-        box-shadow: 0 0 7px rgba(255, 48, 48, 0.9);
+        box-shadow: 0 0 7px color-mix(in srgb, var(--cr-monitor-tone) 88%, transparent);
       }
       .cr-system-monitor__camera::before {
         content: "";
@@ -2433,7 +2933,7 @@ window.__ModuleLoader__.load({
         height: 0;
         border-top: 3px solid transparent;
         border-bottom: 3px solid transparent;
-        border-left: 4px solid #ff3030;
+        border-left: 4px solid var(--cr-monitor-tone);
       }
       .cr-system-monitor__camera::after {
         content: "";
@@ -2443,11 +2943,11 @@ window.__ModuleLoader__.load({
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: #9b1017;
-        box-shadow: 0 0 0 1px #ff7a7a;
+        background: color-mix(in srgb, var(--cr-monitor-tone) 42%, #000);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--cr-monitor-tone) 78%, #fff);
       }
       .cr-system-monitor__state {
-        color: rgba(255, 168, 168, 0.72);
+        color: color-mix(in srgb, var(--cr-monitor-tone) 62%, rgba(255, 255, 255, 0.5));
         font-size: 9px;
         letter-spacing: 0.04em;
       }
@@ -2460,31 +2960,40 @@ window.__ModuleLoader__.load({
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        color: rgba(255, 224, 224, 0.86);
+        /* The metric name is a readout label, so it takes the monitor tone too —
+           lifted toward white so it stays legible against the dark panel. */
+        color: color-mix(in srgb, var(--cr-monitor-tone) 26%, rgba(255, 255, 255, 0.88));
         font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
         font-size: 10px;
         line-height: 1.2;
         letter-spacing: 0.08em;
       }
       .cr-system-monitor__value {
-        color: #ff4a4a;
+        color: var(--cr-monitor-tone);
         font-variant-numeric: tabular-nums;
-        text-shadow: 0 0 6px rgba(255, 48, 48, 0.8);
+        text-shadow: 0 0 6px color-mix(in srgb, var(--cr-monitor-tone) 80%, transparent);
       }
       .cr-system-monitor__track {
         position: relative;
         height: 4px;
         margin-top: 4px;
         overflow: hidden;
-        background: rgba(60, 60, 60, 0.62);
-        border: 1px solid rgba(163, 31, 37, 0.58);
+        background: color-mix(in srgb, var(--cr-monitor-tone) 10%, rgba(60, 60, 60, 0.62));
+        border: 1px solid color-mix(in srgb, var(--cr-monitor-tone) 46%, transparent);
       }
       .cr-system-monitor__fill {
         display: block;
         height: 100%;
         min-width: 0;
-        background: linear-gradient(90deg, #9b1017, #ff4545 72%, #ffb0a9);
-        box-shadow: 0 0 8px rgba(255, 51, 51, 0.85);
+        /* A darker head grading into the chosen tone, then a pale tip, so the
+           bar keeps its lit look at any hue. */
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--cr-monitor-tone) 55%, #000),
+          var(--cr-monitor-tone) 72%,
+          color-mix(in srgb, var(--cr-monitor-tone) 45%, #fff)
+        );
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-monitor-tone) 85%, transparent);
         transition: width 240ms ease-out;
       }
       .cr-system-monitor__network {
@@ -2505,12 +3014,12 @@ window.__ModuleLoader__.load({
       .cr-system-monitor__net strong {
         display: block;
         margin-top: 2px;
-        color: #ff6666;
+        color: var(--cr-monitor-tone);
         font-size: 10px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
-        text-shadow: 0 0 6px rgba(255, 48, 48, 0.78);
+        text-shadow: 0 0 6px color-mix(in srgb, var(--cr-monitor-tone) 78%, transparent);
       }
       /* ---- IP clock and weather card -------------------------------
          The card sits directly below the portrait monitor. It is deliberately
@@ -2520,13 +3029,20 @@ window.__ModuleLoader__.load({
         position: relative;
         flex: none;
         display: grid;
-        gap: 8px;
+        gap: 4px;
         box-sizing: border-box;
         width: calc(100% - 16px) !important;
         max-width: calc(100% - 16px) !important;
         min-width: 0;
-        margin: -8px 8px 8px !important;
-        padding: 8px 0 0;
+        /* Flush with the monitor card above and the simulated cards below:
+           the three panels stack with no seams. */
+        margin: 0 8px 0 !important;
+        /* The card used to reserve 8px above the date panel, on top of the
+           date panel's own 8px padding — that strip is the black band that
+           read as empty space and pushed the cards below it out of the rail.
+           A 4px riser keeps the frame's clip-path corner breathing without
+           the band. */
+        padding: 4px 0 0;
         overflow: hidden;
         background: linear-gradient(180deg, rgba(24, 24, 24, 0.94), rgba(13, 13, 13, 0.98));
         border: 0;
@@ -2539,21 +3055,27 @@ window.__ModuleLoader__.load({
       }
       .cr-world-card__date {
         position: relative;
+        /* Two rows, sized by their content: the stamp/month line on top and
+           the calendar underneath. Because the calendar is a normal grid item
+           the panel always grows to fit it — no reserved min-height, and no
+           chance of the two rows painting over each other. */
         display: grid;
         grid-template-columns: 72px minmax(0, 1fr);
         grid-template-rows: auto auto;
         align-items: start;
         column-gap: 8px;
-        row-gap: 5px;
+        row-gap: 1px;
         min-width: 0;
-        padding: 8px;
+        /* Small top pad on purpose: the card already provides a 4px riser,
+           and doubling it is what produced the empty band above the panel. */
+        padding: 4px 8px 6px;
         overflow: hidden;
         background:
           linear-gradient(180deg, rgba(24, 24, 24, 0.94), rgba(13, 13, 13, 0.98));
-        border: 1px solid rgba(207, 31, 40, 0.8);
+        border: 1px solid color-mix(in srgb, var(--cr-accent) 80%, transparent);
         border-top: 0;
-        box-shadow: inset 0 0 14px rgba(139, 0, 0, 0.18),
-                    0 0 10px rgba(139, 0, 0, 0.2);
+        box-shadow: inset 0 0 14px color-mix(in srgb, var(--cr-accent) 18%, transparent),
+                    0 0 10px color-mix(in srgb, var(--cr-accent) 20%, transparent);
         clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
       }
       .cr-world-card__stamp {
@@ -2564,21 +3086,23 @@ window.__ModuleLoader__.load({
         min-width: 0;
       }
       .cr-world-card__label {
-        color: #ff4a4a;
+        color: var(--cr-accent-text);
         font-size: 10px;
         font-weight: 700;
         line-height: 1.1;
         letter-spacing: 0.12em;
-        text-shadow: 0 0 7px rgba(255, 48, 48, 0.86);
+        text-shadow: 0 0 7px color-mix(in srgb, var(--cr-accent-bright) 86%, transparent);
       }
       .cr-world-card__day {
-        color: #ff3e45;
+        /* The big date figure is the card's focal point: lifted well above the
+           accent so it reads as lit rather than painted. */
+        color: color-mix(in srgb, var(--cr-accent) 30%, #ffffff);
         font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
         font-size: 32px;
         font-weight: 700;
         line-height: 0.88;
         font-variant-numeric: tabular-nums;
-        text-shadow: 0 0 9px rgba(255, 48, 48, 0.78);
+        text-shadow: 0 0 9px color-mix(in srgb, var(--cr-accent) 85%, transparent);
       }
       .cr-world-card__date-meta {
         grid-column: 2;
@@ -2586,22 +3110,30 @@ window.__ModuleLoader__.load({
       }
       .cr-world-card__weekday {
         min-width: 0;
-        color: rgba(255, 232, 235, 0.92);
+        color: color-mix(in srgb, var(--cr-accent) 12%, #ffffff);
         font-size: 11px;
         font-weight: 600;
         line-height: 1.1;
         white-space: nowrap;
       }
       .cr-world-card__month {
-        color: rgba(255, 220, 224, 0.76);
+        color: color-mix(in srgb, var(--cr-accent) 16%, rgba(255, 255, 255, 0.88));
         font-size: 10px;
         line-height: 1.25;
         white-space: nowrap;
       }
+      /* Back in the flow. It used to be absolutely positioned to escape a row
+         track that was too short, but an out-of-flow grid painted over the
+         weekday/month copy in the same column — the two read as one jumble.
+         It now owns the panel's second row, so the row is always at least as
+         tall as the calendar and nothing can overlap it. */
       .cr-world-card__calendar {
         grid-column: 2;
+        grid-row: 2;
+        align-self: start;
         display: grid;
-        gap: 3px;
+        gap: 1px;
+        margin-top: 2px;
         min-width: 0;
         color: rgba(255, 226, 230, 0.76);
       }
@@ -2614,23 +3146,37 @@ window.__ModuleLoader__.load({
         font-variant-numeric: tabular-nums;
       }
       .cr-world-card__calendar-weekdays {
-        color: rgba(255, 134, 140, 0.82);
+        /* The weekday header is smaller than the figures, so it needs a higher
+           white share to stay readable at 7px. */
+        color: color-mix(in srgb, var(--cr-accent) 30%, #ffffff);
         font-size: 7px;
         line-height: 1;
       }
+      /* Ten rows at 12px plus gaps came to ~73px for a month, and the card
+         sits in a 300px rail where that block competed with the weather and
+         the progress cards. Rows are tighter now, and sized by their own
+         content rather than a fixed track: a hard grid-auto-rows value below
+         the line height silently clipped the final week. */
       .cr-world-card__calendar-grid {
-        grid-auto-rows: 12px;
-        row-gap: 2px;
+        grid-auto-rows: min-content;
+        row-gap: 1px;
         font-size: 8px;
-        line-height: 12px;
+        line-height: 1.4;
       }
       .cr-world-card__calendar-cell {
         min-width: 0;
         overflow: hidden;
-        color: rgba(255, 232, 235, 0.78);
+        /* Bright, not tinted: these are 8px figures on a dark panel, so the
+           accent is pushed most of the way to white. Keeping a little of the
+           hue is enough for the grid to follow a colour change without the
+           digits going dim. */
+        color: color-mix(in srgb, var(--cr-accent) 22%, #ffffff);
       }
       .cr-world-card__calendar-cell[data-muted] {
-        color: rgba(255, 190, 196, 0.28);
+        /* Adjacent-month days stay clearly dimmer than the live ones, but were
+           unreadable at the previous value; this keeps the separation while
+           staying visible. */
+        color: color-mix(in srgb, var(--cr-accent) 18%, rgba(255, 255, 255, 0.34));
       }
       .cr-world-card__calendar-cell[data-today] {
         position: relative;
@@ -2644,8 +3190,8 @@ window.__ModuleLoader__.load({
         z-index: -1;
         inset: 0 1px;
         border-radius: 2px;
-        background: #ef242b;
-        box-shadow: 0 0 8px rgba(255, 48, 48, 0.92);
+        background: var(--cr-accent-bright);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent-bright) 92%, transparent);
       }
       .cr-world-card__rule {
         display: none;
@@ -2660,11 +3206,16 @@ window.__ModuleLoader__.load({
         padding: 8px;
         overflow: hidden;
         background: linear-gradient(180deg, rgba(18, 18, 18, 0.97), rgba(13, 13, 13, 0.98));
-        border: 1px solid rgba(178, 28, 37, 0.72);
-        box-shadow: inset 0 0 12px rgba(139, 0, 0, 0.12),
-                    0 0 9px rgba(139, 0, 0, 0.15);
+        border: 1px solid color-mix(in srgb, var(--cr-accent) 72%, transparent);
+        box-shadow: inset 0 0 12px color-mix(in srgb, var(--cr-accent) 12%, transparent),
+                    0 0 9px color-mix(in srgb, var(--cr-accent) 15%, transparent);
         clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
-        transform: translateY(-15px);
+        /* No vertical nudge. This used to be translateY(-15px) to tuck the
+           panel under the date block, but a transform moves the box without
+           moving its layout slot: the panel painted 15px higher than it
+           occupied, covering the last week of the calendar. The gap between
+           the two panels is now part of the card's own grid spacing. */
+        transform: none;
       }
       .cr-world-card__icon {
         position: relative;
@@ -2816,14 +3367,14 @@ window.__ModuleLoader__.load({
       .cr-world-card__time {
         flex: none;
         align-self: auto;
-        color: #ff4a4a;
+        color: var(--cr-accent-text);
         font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif;
         font-size: 18px;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
         letter-spacing: 0.02em;
-        text-shadow: 0 0 7px rgba(255, 48, 48, 0.78);
+        text-shadow: 0 0 7px color-mix(in srgb, var(--cr-accent-bright) 78%, transparent);
       }
       .cr-world-card__offline {
         color: rgba(255, 196, 202, 0.72);
@@ -2839,19 +3390,30 @@ window.__ModuleLoader__.load({
         box-sizing: border-box;
         width: calc(100% - 16px) !important;
         max-width: calc(100% - 16px) !important;
-        height: 178px;
-        max-height: 178px;
+        /* Content-sized. The fixed 178px reserved space the two sections
+           never filled, which showed up as an empty black block under the
+           task-progress heading and pushed the code scroll further down. */
+        height: auto;
+        max-height: 260px;
         min-width: 0;
-        margin: -32px 8px 8px !important;
+        /* Flush above and below: this panel meets the weather card on its top
+           edge and the telemetry block on its bottom edge, so the three read
+           as one continuous stack. Was -32px originally, a hand-tuned pull-up
+           that painted over the weather card. */
+        margin: 0 8px 0 !important;
         padding: 8px;
         overflow: hidden;
         background:
-          linear-gradient(180deg, rgba(35, 7, 10, 0.96), rgba(12, 5, 7, 0.98)),
-          repeating-linear-gradient(0deg, rgba(255, 48, 48, 0.045) 0 1px, transparent 1px 5px);
-        border: 1px solid rgba(151, 24, 31, 0.72);
-        box-shadow: inset 0 0 16px rgba(139, 0, 0, 0.20),
-                    0 0 10px rgba(139, 0, 0, 0.16);
-        clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+          linear-gradient(180deg, color-mix(in srgb, var(--cr-fake-tone) 16%, #1a0a0c), rgba(12, 5, 7, 0.98)),
+          repeating-linear-gradient(0deg, color-mix(in srgb, var(--cr-fake-tone) 5%, transparent) 0 1px, transparent 1px 5px);
+        border: 1px solid color-mix(in srgb, var(--cr-fake-tone) 58%, transparent);
+        box-shadow: inset 0 0 16px color-mix(in srgb, var(--cr-fake-tone) 20%, transparent),
+                    0 0 10px color-mix(in srgb, var(--cr-fake-tone) 16%, transparent);
+        /* Square top edge. The panel sits directly under the weather card, so
+           a clipped top-left corner there left a notch showing through right
+           where the two are supposed to meet. Only the bottom corners keep
+           the reference treatment. */
+        clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
       }
       .cr-rail[data-cr-world-card="hidden"] .cr-fake-cards {
         margin-top: 0 !important;
@@ -2863,7 +3425,7 @@ window.__ModuleLoader__.load({
       .cr-fake-cards__section + .cr-fake-cards__section {
         margin-top: 8px;
         padding-top: 8px;
-        border-top: 1px solid rgba(139, 0, 0, 0.48);
+        border-top: 1px solid color-mix(in srgb, var(--cr-fake-tone) 48%, transparent);
       }
       .cr-fake-cards__heading {
         display: flex;
@@ -2871,17 +3433,17 @@ window.__ModuleLoader__.load({
         justify-content: space-between;
         gap: 8px;
         min-width: 0;
-        color: #ff4b4b;
+        color: var(--cr-fake-tone);
         font-family: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", sans-serif;
         font-size: 9px;
         font-weight: 700;
         letter-spacing: 0.10em;
         line-height: 1.2;
-        text-shadow: 0 0 7px rgba(255, 48, 48, 0.82);
+        text-shadow: 0 0 7px color-mix(in srgb, var(--cr-fake-tone) 82%, transparent);
       }
       .cr-fake-cards__heading-status {
         flex: none;
-        color: rgba(255, 172, 172, 0.76);
+        color: color-mix(in srgb, var(--cr-fake-tone) 42%, rgba(255, 255, 255, 0.7));
         font-size: 8px;
         letter-spacing: 0.04em;
       }
@@ -2904,7 +3466,7 @@ window.__ModuleLoader__.load({
         animation: cr-fake-log-in .36s ease-out both;
       }
       .cr-fake-log__time {
-        color: rgba(255, 102, 102, 0.78);
+        color: color-mix(in srgb, var(--cr-fake-tone) 72%, transparent);
         font-variant-numeric: tabular-nums;
       }
       .cr-fake-log__message {
@@ -2935,7 +3497,7 @@ window.__ModuleLoader__.load({
         white-space: nowrap;
       }
       .cr-fake-progress__value {
-        color: #ff6868;
+        color: var(--cr-fake-tone);
         text-align: right;
         font-family: "Consolas", "Cascadia Mono", monospace;
         font-variant-numeric: tabular-nums;
@@ -2944,14 +3506,19 @@ window.__ModuleLoader__.load({
         position: relative;
         height: 5px;
         overflow: hidden;
-        background: rgba(34, 5, 7, 0.88);
-        border: 1px solid rgba(153, 28, 35, 0.58);
+        background: color-mix(in srgb, var(--cr-fake-tone) 10%, rgba(20, 6, 8, 0.9));
+        border: 1px solid color-mix(in srgb, var(--cr-fake-tone) 46%, transparent);
       }
       .cr-fake-progress__fill {
         display: block;
         height: 100%;
-        background: linear-gradient(90deg, #9b1017, #ff4040 72%, #ffaaa0);
-        box-shadow: 0 0 7px rgba(255, 48, 48, 0.82);
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--cr-fake-tone) 55%, #000),
+          var(--cr-fake-tone) 72%,
+          color-mix(in srgb, var(--cr-fake-tone) 45%, #fff)
+        );
+        box-shadow: 0 0 7px color-mix(in srgb, var(--cr-fake-tone) 82%, transparent);
         transition: width .42s ease-out;
       }
       @keyframes cr-fake-log-in {
@@ -3165,7 +3732,7 @@ window.__ModuleLoader__.load({
           transform: scale < 1 ? 'scale(' + scale + ')' : 'none',
           transformOrigin: 'left top',
           imageRendering: 'pixelated',
-          filter: 'drop-shadow(0 0 3px rgba(139, 0, 0, 0.913))',
+          filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--cr-accent) 91%, transparent))',
         },
       });
     }
@@ -3208,7 +3775,10 @@ window.__ModuleLoader__.load({
         const id = window.setInterval(function () {
           setView(function (prev) {
             const next = prev.top + 1;
-            if (next > CODE_LINES.length) return { top: 0 };
+            /* >= not >: at top === length the modulo in the render already
+               yields the same rows as top === 0, so ">" displayed one
+               duplicated frame before wrapping. */
+            if (next >= CODE_LINES.length) return { top: 0 };
             return { top: next };
           });
         }, CODE_BEAT_MS);
@@ -3261,7 +3831,64 @@ window.__ModuleLoader__.load({
     };
 
     /* Draws one number as pixels on a canvas scaled to `unit` px per dot.
-       Default 2px per dot: twice the size of the small matrix type. */
+       Default 2px per dot: twice the size of the small matrix type.
+
+       Canvas cannot resolve `var(--cr-accent)`, and a canvas fill has no
+       cascade to inherit from — so the accent is read from the computed style
+       of :root at draw time and converted to a plain rgb() string. Without
+       this the figures stay the hard-coded red whatever the picker says,
+       which is exactly what happened before: the CSS rule on .cr-matrix__cell
+       had no effect on a painted canvas. */
+    /* Cache the last resolution: the ticker repaints on every beat and on
+       every :root style mutation, and the old code created + attached + read +
+       removed a probe <span> each time, forcing layout on every repaint. The
+       key is the raw token text, so a colour change still invalidates it. */
+    let accentColorCacheKey = null;
+    let accentColorCacheValue = null;
+
+    function readAccentColor(fallback) {
+      try {
+        const raw = getComputedStyle(document.documentElement)
+          .getPropertyValue('--cr-accent').trim();
+        if (!raw) return fallback;
+        if (accentColorCacheKey === raw && accentColorCacheValue !== null) {
+          return accentColorCacheValue;
+        }
+        const store = function (value) {
+          accentColorCacheKey = raw;
+          accentColorCacheValue = value;
+          return value;
+        };
+        /* getPropertyValue on a custom property returns the token as authored,
+           which may itself be a var() or color-mix() expression. Resolving it
+           through a single reused element forces the browser to compute a real
+           colour instead — reused, so no node is created per repaint. */
+        if (!/^#[0-9a-f]{3,8}$/i.test(raw) && !/^rgba?\(/i.test(raw)) {
+          let probe = document.getElementById('cr-color-probe');
+          if (!probe) {
+            probe = document.createElement('span');
+            probe.id = 'cr-color-probe';
+            probe.style.display = 'none';
+            (document.body || document.documentElement).appendChild(probe);
+          }
+          probe.style.color = raw;
+          const computed = getComputedStyle(probe).color;
+          if (computed) return store(computed);
+          return fallback;
+        }
+        if (/^#[0-9a-f]{3}$/i.test(raw)) {
+          return store('rgb(' + [raw[1] + raw[1], raw[2] + raw[2], raw[3] + raw[3]]
+            .map(function (h) { return parseInt(h, 16); }).join(',') + ')');
+        }
+        if (/^#[0-9a-f]{6}$/i.test(raw)) {
+          return store('rgb(' + [raw.slice(1, 3), raw.slice(3, 5), raw.slice(5, 7)]
+            .map(function (h) { return parseInt(h, 16); }).join(',') + ')');
+        }
+        return store(raw);
+      } catch (e) { /* fall through */ }
+      return fallback;
+    }
+
     function PixelNumber(props) {
       const text = String(props.value);
       const unit = props.unit || 2;
@@ -3271,23 +3898,44 @@ window.__ModuleLoader__.load({
 
       React.useEffect(function () {
         const canvas = ref.current;
-        if (!canvas || typeof canvas.getContext !== 'function') return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.clearRect(0, 0, cols * unit, rows * unit);
-        ctx.fillStyle = '#ff2b2b';
-        for (let c = 0; c < text.length; c += 1) {
-          const glyph = PIXEL_GLYPHS[text[c]];
-          if (!glyph) continue;
-          for (let y = 0; y < rows; y += 1) {
-            const line = glyph[y] || '';
-            for (let x = 0; x < 5; x += 1) {
-              if (line[x] !== '1') continue;
-              ctx.fillRect((c * 6 + x) * unit, y * unit, unit, unit);
+        if (!canvas || typeof canvas.getContext !== 'function') return undefined;
+
+        const paint = function () {
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          ctx.clearRect(0, 0, cols * unit, rows * unit);
+          ctx.fillStyle = readAccentColor(props.color || '#ff2b2b');
+          for (let c = 0; c < text.length; c += 1) {
+            const glyph = PIXEL_GLYPHS[text[c]];
+            if (!glyph) continue;
+            for (let y = 0; y < rows; y += 1) {
+              const line = glyph[y] || '';
+              for (let x = 0; x < 5; x += 1) {
+                if (line[x] !== '1') continue;
+                ctx.fillRect((c * 6 + x) * unit, y * unit, unit, unit);
+              }
             }
           }
+        };
+
+        paint();
+
+        /* Repaint when the accent changes. The plugin publishes it as an
+           inline style on <html>, so watching that attribute is enough and
+           keeps this component independent of the settings-page hooks (which
+           are declared later in the module). */
+        let observer = null;
+        if (typeof MutationObserver === 'function' && document.documentElement) {
+          observer = new MutationObserver(paint);
+          observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style'],
+          });
         }
-      });
+        return function () {
+          if (observer) observer.disconnect();
+        };
+      }, [text, unit, props.color]);
 
       return h('canvas', {
         ref: ref,
@@ -3299,7 +3947,7 @@ window.__ModuleLoader__.load({
           height: (rows * unit) + 'px',
           display: 'block',
           /* Bloom matched to the new glyph colour. */
-          filter: 'drop-shadow(0 0 4px rgba(255, 43, 43, 0.90))',
+          filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--cr-accent-bright) 90%, transparent))',
         },
       });
     }
@@ -3600,7 +4248,11 @@ window.__ModuleLoader__.load({
       const firstWeekday = (new Date(Date.UTC(numericYear, numericMonth - 1, 1)).getUTCDay() + 6) % 7;
       const daysInMonth = new Date(Date.UTC(numericYear, numericMonth, 0)).getUTCDate();
       const previousMonthDays = new Date(Date.UTC(numericYear, numericMonth - 1, 0)).getUTCDate();
-      const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+      /* Always six weeks. A month that fits in five rows produced a shorter
+         panel, so the whole card (and everything below it) shifted by one row
+         from month to month. Six rows is the stable choice, and the trailing
+         cells are muted so they read as the next month rather than this one. */
+      const totalCells = 42;
       const cells = [];
       for (let index = 0; index < totalCells; index += 1) {
         const rawDay = index - firstWeekday + 1;
@@ -3634,7 +4286,13 @@ window.__ModuleLoader__.load({
             method: 'GET',
             cache: 'no-store',
             credentials: 'same-origin',
-          }, 5000).then(function (payload) {
+          /* The server fans out to several geolocation providers and waits for
+             all of them before answering, so this wait must exceed the slowest
+             provider (the server caps each at 3.5s, plus the weather call).
+             The old 5s budget was shorter than the server's own 9s per-provider
+             timeout, so a single dead provider made the card go offline even
+             though the response was about to arrive. */
+          }, 8000).then(function (payload) {
             if (alive && payload && payload.ok && payload.data) {
               setWorld(payload.data);
               setStatus('online');
@@ -3890,6 +4548,10 @@ window.__ModuleLoader__.load({
         if (!open) return undefined;
         const sync = () => applyRailWidth();
         sync();
+        /* The sidebar's own box may not exist on the first tick (the shell
+           lays its columns out after mount), so re-measure once the frame has
+           had a chance to settle. */
+        const settleTimer = window.setTimeout(sync, 120);
         window.addEventListener('resize', sync, { passive: true });
 
         let observer = null;
@@ -3907,6 +4569,7 @@ window.__ModuleLoader__.load({
         }
 
         return () => {
+          window.clearTimeout(settleTimer);
           window.removeEventListener('resize', sync);
           if (observer) observer.disconnect();
           if (mo) mo.disconnect();
@@ -3916,6 +4579,13 @@ window.__ModuleLoader__.load({
       if (!open) return null;
       return h(React.Fragment, null,
         h(StyleTag, { css: RAIL_CSS }),
+        /* Frame rule, drawn OUTSIDE the scrolling aside.
+           The rail scrolls (overflow-y:auto), and that clips absolutely
+           positioned children to its padding box — so a ::before raised above
+           the rail's top edge was simply cut off. This layer is fixed in the
+           viewport instead: its top edge sits on the sidebar's rule, while the
+           aside below keeps its own original height and position. */
+        h('div', { className: 'cr-rail-frame', 'aria-hidden': true }),
         h('aside', {
           className: 'cr-rail',
           'aria-label': '\u5b9e\u9a8c\u72b6\u6001',
@@ -3999,7 +4669,7 @@ window.__ModuleLoader__.load({
         width: 40,
         height: 22,
         borderRadius: 11,
-        border: '1px solid ' + (on ? '#8b0000' : 'var(--dsw-alias-border-l2)'),
+        border: '1px solid ' + (on ? 'var(--cr-accent)' : 'var(--dsw-alias-border-l2)'),
         background: on ? 'rgba(255, 70, 96,0.18)' : 'transparent',
         boxShadow: on ? '0 0 12px rgba(255, 70, 96,0.45)' : 'none',
         cursor: 'pointer',
@@ -4013,7 +4683,7 @@ window.__ModuleLoader__.load({
         width: 16,
         height: 16,
         borderRadius: '50%',
-        background: on ? '#8b0000' : '#a8666f',
+        background: on ? 'var(--cr-accent)' : '#a8666f',
         boxShadow: on ? '0 0 8px rgba(255, 70, 96,0.9)' : 'none',
         transition: 'left .15s, background .15s',
       };
@@ -4201,7 +4871,10 @@ window.__ModuleLoader__.load({
        `HERO_BRAND_ORIGINAL` remembers what the shell itself put in that
        headline, so switching the plan off restores the shipped copy instead
        of a hard-coded string that can drift from it. */
-    const HERO_BRAND_DEFAULT = '\u4f1f\u5927\u667a\u80fd\u7edf\u8f96';
+    /* Default wordmark. Was 伟大智能统治; it is now the wording that was set
+       from the settings page, so a fresh install (and the reset button) lands
+       on the text in everyday use. */
+    const HERO_BRAND_DEFAULT = '\u957f\u5f81\u00b7\u667a\u80fd\u7edf\u8f96';
     let heroBrandText = HERO_BRAND_DEFAULT;
     /* Keep the shell copy per element so a host re-render cannot lose it. */
     let heroBrandOriginal = null;
@@ -4579,7 +5252,9 @@ window.__ModuleLoader__.load({
     /* ---- Rail-top banner text ---------------------------------------
        The line centred at the top of the lab rail, above the portrait.
        Settings label 实验状态栏顶部标语, default 逻辑. Same store pattern. */
-    const FORM_TEXT_DEFAULT = '\u6309\u9700\u5206\u914d  \u4eba\u4eba\u5171\u4eab';
+    /* Default rail-top label. Was 按需分配 人人共享; it is now the wording set
+       from the settings page. */
+    const FORM_TEXT_DEFAULT = '\u957f\u5f81';
     let formText = FORM_TEXT_DEFAULT;
     const formListeners = new Set();
     const emitForm = function () {
@@ -4740,6 +5415,209 @@ window.__ModuleLoader__.load({
         }
       } catch (e) { /* keep the default */ }
       publishChatBrightness();
+    };
+
+    /* ---- Accent colour ------------------------------------------------
+       One colour drives every line, frame and label across the UI: the
+       sidebar frame, the conversation column, the right rail, the top bar
+       caption, the blinking status dot and the composer controls. It is
+       written straight onto :root, so every derived tone (--cr-accent-soft,
+       --cr-accent-line, --cr-red …) follows from a single property write and
+       nothing has to re-render.
+
+       A hex value is stored because <input type="color"> speaks hex; the
+       alpha ramp lives in the stylesheet. */
+    const ACCENT_DEFAULT = '#8b0000';
+    /* Swatches offered next to the picker: the shipped crimson plus tones
+       that stay readable on the near-black ground. */
+    const ACCENT_PRESETS = [
+      { value: '#8b0000', label: '\u957f\u5f81\u7ea2' },
+      { value: '#c2185b', label: '\u5fae\u5149\u6d0b\u7ea2' },
+      { value: '#d97706', label: '\u7425\u73c0\u91d1' },
+      { value: '#0f766e', label: '\u9759\u6ea2\u9752' },
+      { value: '#139cbe', label: '\u9752\u84dd\u69fd' },
+      { value: '#6d28d9', label: '\u7d2b\u7f57\u5170' },
+      { value: '#334155', label: '\u94a2\u94c1\u7070' },
+    ];
+
+    let accentColor = ACCENT_DEFAULT;
+    const accentListeners = new Set();
+    const emitAccent = function () {
+      for (const fn of accentListeners) fn();
+    };
+    /* Guard against a stored value that is not a usable colour: anything the
+       picker cannot parse would silently blank every line in the UI. */
+    const normaliseAccent = function (value) {
+      const text = String(value == null ? '' : value).trim();
+      if (/^#[0-9a-f]{6}$/i.test(text)) return text.toLowerCase();
+      if (/^#[0-9a-f]{3}$/i.test(text)) {
+        return ('#' + text[1] + text[1] + text[2] + text[2] + text[3] + text[3]).toLowerCase();
+      }
+      return null;
+    };
+    /* The panel frames are SVG data URIs used as background-images. An image
+       document has no cascade, so `currentColor`, `var()` and `color-mix()`
+       inside it all fail — `currentColor` silently resolves to black, which is
+       why the frames vanished on the dark ground. The only reliable way to
+       recolour them is to bake the concrete hex into the markup, so these
+       builders produce a fresh data URI whenever the accent changes. */
+    const FRAME_PATHS = {
+      base: 'M70 8 H930 L992 70 V930 L930 992 H70 L8 930 V70 Z',
+      left: 'M8 8 H930 L992 70 V930 L930 992 H8 V8 Z',
+      leftInner: 'M8 8 H930 L992 70 V930 L930 992 H8 V8 Z',
+      right: 'M70 8 H930 L992 70 V992 H70 L8 930 V70 Z',
+      /* The right rail's own frame: open on the right edge. */
+      rail: 'M70 8 H992 V992 H70 L8 930 V70 Z',
+      /* The fold lines across the very top of the window. */
+      topbar: 'M10 12 H212 L230 30 H388 M612 30 H770 L788 12 H948 L966 30 H990',
+    };
+    /* Frames that differ from the panels in viewBox or stroke opacity. */
+    const FRAME_VIEWBOX = { topbar: '0 0 1000 100' };
+    const FRAME_OPACITY = { topbar: '1', rail: '1' };
+    const buildFrameUrl = function (name) {
+      const hex = '%23' + String(accentColor).replace('#', '');
+      const path = FRAME_PATHS[name];
+      if (!path) return null;
+      const fold = name === 'left'
+        ? '%3Cpath d%3D%27M956 72 L922 38 M956 928 L922 962%27 fill%3D%27none%27 stroke%3D%27'
+          + hex + '%27 stroke-opacity%3D%27.65%27 stroke-width%3D%272%27%2F%3E'
+        : '';
+      const viewBox = FRAME_VIEWBOX[name] || '0 0 1000 1000';
+      const opacity = FRAME_OPACITY[name] || '.9';
+      return 'url("data:image/svg+xml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27'
+        + ' viewBox%3D%27' + viewBox + '%27 preserveAspectRatio%3D%27none%27%3E'
+        + '%3Cpath d%3D%27' + path + '%27 fill%3D%27none%27 stroke%3D%27'
+        + hex + '%27 stroke-opacity%3D%27' + opacity + '%27 stroke-width%3D%272%27%2F%3E'
+        + fold + '%3C%2Fsvg%3E")';
+    };
+    const publishFrameArt = function () {
+      try {
+        const root = document.documentElement;
+        for (const [varName, key] of [
+          ['--cr-frame-base', 'base'],
+          ['--cr-frame-left', 'left'],
+          ['--cr-frame-right', 'right'],
+          ['--cr-frame-left-inner', 'leftInner'],
+          ['--cr-frame-rail', 'rail'],
+          ['--cr-frame-topbar', 'topbar'],
+        ]) {
+          const url = buildFrameUrl(key);
+          if (url) root.style.setProperty(varName, url);
+        }
+      } catch (e) { /* document gone */ }
+    };
+    const publishAccent = function () {
+      try {
+        document.documentElement.style.setProperty('--cr-accent', accentColor);
+      } catch (e) { /* document gone */ }
+      publishFrameArt();
+    };
+    const useAccent = function () {
+      const state = React.useState(0);
+      const force = state[1];
+      React.useEffect(function () {
+        const fn = function () { force(function (n) { return n + 1; }); };
+        accentListeners.add(fn);
+        return function () { accentListeners.delete(fn); };
+      }, []);
+      return accentColor;
+    };
+    const setAccent = function (next) {
+      const value = normaliseAccent(next);
+      if (!value || value === accentColor) return;
+      accentColor = value;
+      try {
+        window.localStorage.setItem('cr-accent', value);
+      } catch (e) { /* storage unavailable */ }
+      publishAccent();
+      emitAccent();
+    };
+    const restoreAccent = function () {
+      try {
+        const raw = window.localStorage.getItem('cr-accent');
+        const value = normaliseAccent(raw);
+        if (value) accentColor = value;
+      } catch (e) { /* keep the default */ }
+      publishAccent();
+    };
+
+    /* ---- Player surface and monitor readout ---------------------------
+       The monitor tone is independent of --cr-accent on purpose: it is a
+       READOUT (the camera glyph, the CPU/memory bars, the network figures),
+       and an operator may want it to disagree with the frame colour — a green
+       readout on red frames is a normal console idiom.
+
+       The player surface is NOT here: it follows --cr-accent, so the panel and
+       the frames around it stay one family. */
+    const MONITOR_TONE_DEFAULT = '#ff4545';
+    const MONITOR_TONE_PRESETS = [
+      { value: '#ff4545', label: '\u544a\u8b66\u7ea2' },
+      { value: '#ffb020', label: '\u7425\u73c0\u9ec4' },
+      { value: '#39d98a', label: '\u4fe1\u53f7\u7eff' },
+      { value: '#38bdf8', label: '\u5929\u9752\u84dd' },
+      { value: '#a78bfa', label: '\u5e7b\u7d2b' },
+      { value: '#e5e7eb', label: '\u94c5\u767d' },
+    ];
+    let monitorTone = MONITOR_TONE_DEFAULT;
+    /* The fake feature cards get their own tone, with the same machinery. */
+    const FAKE_TONE_DEFAULT = '#ff4b4b';
+    const FAKE_TONE_PRESETS = [
+      { value: '#ff4b4b', label: '\u544a\u8b66\u7ea2' },
+      { value: '#ffb020', label: '\u7425\u73c0\u9ec4' },
+      { value: '#39d98a', label: '\u4fe1\u53f7\u7eff' },
+      { value: '#38bdf8', label: '\u5929\u9752\u84dd' },
+      { value: '#a78bfa', label: '\u5e7b\u7d2b' },
+      { value: '#e5e7eb', label: '\u94c5\u767d' },
+    ];
+    let fakeTone = FAKE_TONE_DEFAULT;
+    const panelColorListeners = new Set();
+    const emitPanelColors = function () {
+      for (const fn of panelColorListeners) fn();
+    };
+    const publishPanelColors = function () {
+      try {
+        document.documentElement.style.setProperty('--cr-monitor-tone', monitorTone);
+        document.documentElement.style.setProperty('--cr-fake-tone', fakeTone);
+      } catch (e) { /* document gone */ }
+    };
+    const usePanelColors = function () {
+      const state = React.useState(0);
+      const force = state[1];
+      React.useEffect(function () {
+        const fn = function () { force(function (n) { return n + 1; }); };
+        panelColorListeners.add(fn);
+        return function () { panelColorListeners.delete(fn); };
+      }, []);
+      return { monitorTone: monitorTone, fakeTone: fakeTone };
+    };
+    const setMonitorTone = function (next) {
+      const value = normaliseAccent(next);
+      if (!value || value === monitorTone) return;
+      monitorTone = value;
+      try {
+        window.localStorage.setItem('cr-monitor-tone', value);
+      } catch (e) { /* storage unavailable */ }
+      publishPanelColors();
+      emitPanelColors();
+    };
+    const setFakeTone = function (next) {
+      const value = normaliseAccent(next);
+      if (!value || value === fakeTone) return;
+      fakeTone = value;
+      try {
+        window.localStorage.setItem('cr-fake-tone', value);
+      } catch (e) { /* storage unavailable */ }
+      publishPanelColors();
+      emitPanelColors();
+    };
+    const restorePanelColors = function () {
+      try {
+        const tone = normaliseAccent(window.localStorage.getItem('cr-monitor-tone'));
+        if (tone) monitorTone = tone;
+        const fake = normaliseAccent(window.localStorage.getItem('cr-fake-tone'));
+        if (fake) fakeTone = fake;
+      } catch (e) { /* keep the defaults */ }
+      publishPanelColors();
     };
 
     const MUSIC_TRACKS = [
@@ -4924,6 +5802,12 @@ window.__ModuleLoader__.load({
        the player share one source of truth. */
     const MUSIC_PLAYER_VISIBLE_DEFAULT = true;
     const MUSIC_TRACKS_ENABLED_DEFAULT = true;
+    /* Volume for the sidebar player. 0.6 is the level the player used before
+       the control existed, so an untouched install sounds exactly as it did. */
+    const MUSIC_VOLUME_DEFAULT = 0.6;
+    let musicVolume = MUSIC_VOLUME_DEFAULT;
+    let musicMuted = false;
+    let musicVolumeBeforeMute = MUSIC_VOLUME_DEFAULT;
     let musicPlayerVisible = MUSIC_PLAYER_VISIBLE_DEFAULT;
     let musicEnabled = null;
     let previewAudio = null;
@@ -4988,6 +5872,42 @@ window.__ModuleLoader__.load({
       try {
         musicPlayerVisible = window.localStorage.getItem('cr-music-player-visible') !== '0';
       } catch (e) { /* keep visible */ }
+      try {
+        const raw = window.localStorage.getItem('cr-music-volume');
+        if (raw !== null) {
+          const parsed = Number(raw);
+          if (Number.isFinite(parsed)) musicVolume = Math.max(0, Math.min(1, parsed));
+        }
+        musicMuted = window.localStorage.getItem('cr-music-muted') === '1';
+      } catch (e) { /* keep the default level */ }
+      musicVolumeBeforeMute = musicVolume > 0 ? musicVolume : MUSIC_VOLUME_DEFAULT;
+    };
+
+    /* The level actually written to an <audio> element: muted wins over the
+       slider position, so pressing mute does not lose the slider value. */
+    const effectiveMusicVolume = function () {
+      return musicMuted ? 0 : musicVolume;
+    };
+    const setMusicVolume = function (next) {
+      const value = Math.max(0, Math.min(1, Number(next)));
+      if (!Number.isFinite(value)) return;
+      if (musicVolume === value && !musicMuted) return;
+      musicVolume = value;
+      /* Dragging off zero is an explicit unmute. */
+      if (value > 0) musicMuted = false;
+      if (value > 0) musicVolumeBeforeMute = value;
+      try {
+        window.localStorage.setItem('cr-music-volume', String(value));
+        window.localStorage.setItem('cr-music-muted', musicMuted ? '1' : '0');
+      } catch (e) { /* storage unavailable */ }
+      emitMusicState();
+    };
+    const toggleMusicMute = function () {
+      musicMuted = !musicMuted;
+      try {
+        window.localStorage.setItem('cr-music-muted', musicMuted ? '1' : '0');
+      } catch (e) { /* storage unavailable */ }
+      emitMusicState();
     };
     const stopMusicPreview = function () {
       const audio = previewAudio;
@@ -5016,7 +5936,9 @@ window.__ModuleLoader__.load({
         const audio = new window.Audio(track.url);
         previewAudio = audio;
         audio.__crPreviewTrackId = track.id;
-        audio.volume = 0.6;
+        /* Previews follow the same level as the main player, so auditioning
+           a track at 20% does not suddenly blast at the old fixed 60%. */
+        audio.volume = effectiveMusicVolume();
         const clear = function () {
           if (previewAudio === audio) previewAudio = null;
         };
@@ -5137,14 +6059,14 @@ window.__ModuleLoader__.load({
       '  font-size: 12px; line-height: 1.5; margin-top: 2px; }',
       '.cr-plan__toggle { position: relative; width: 40px; height: 22px;',
       '  flex: none; padding: 0; border-radius: 11px;',
-      '  border: 1px solid #8b0000; background: rgba(139, 0, 0, 0.339);',
-      '  box-shadow: 0 0 12px rgba(139, 0, 0, 0.758); cursor: pointer;',
+      '  border: 1px solid var(--cr-accent); background: color-mix(in srgb, var(--cr-accent) 34%, transparent);',
+      '  box-shadow: 0 0 12px color-mix(in srgb, var(--cr-accent) 76%, transparent); cursor: pointer;',
       '  transition: background .15s, box-shadow .15s, border-color .15s; }',
       '.cr-plan__toggle[aria-checked="false"] { background: transparent;',
       '  border-color: var(--dsw-alias-border-l2); box-shadow: none; }',
       '.cr-plan__knob { position: absolute; top: 2px; left: 20px;',
-      '  width: 16px; height: 16px; border-radius: 50%; background: #8b0000;',
-      '  box-shadow: 0 0 8px rgba(139, 0, 0, 0.950);',
+      '  width: 16px; height: 16px; border-radius: 50%; background: var(--cr-accent);',
+      '  box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent) 95%, transparent);',
       '  transition: left .15s, background .15s; }',
       '.cr-plan__toggle[aria-checked="false"] .cr-plan__knob { left: 2px;',
       '  background: #a8666f; }',
@@ -5162,13 +6084,13 @@ window.__ModuleLoader__.load({
       /* Full-width input box under the caption. */
       '.cr-plan__input { width: 100%; box-sizing: border-box;',
       '  padding: 7px 10px; border-radius: 0;',
-      '  border: 1px solid rgba(139, 0, 0, 0.758);',
-      '  background: rgba(139, 0, 0, 0.153); color: #fff4f6;',
+      '  border: 1px solid color-mix(in srgb, var(--cr-accent) 76%, transparent);',
+      '  background: color-mix(in srgb, var(--cr-accent) 15%, transparent); color: #fff4f6;',
       '  font-family: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;',
       '  font-size: 13px; line-height: 1.5; outline: none;',
       '  transition: border-color .15s, box-shadow .15s; }',
-      '.cr-plan__input:focus { border-color: #8b0000;',
-      '  box-shadow: 0 0 10px rgba(139, 0, 0, 0.758); }',
+      '.cr-plan__input:focus { border-color: var(--cr-accent);',
+      '  box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 76%, transparent); }',
       '.cr-plan__input::placeholder { color: #c99aa2; }',
       '.cr-plan .cr-plan__note { color: #2de8eb;',
       '  font-size: 11px; line-height: 1.5; }',
@@ -5176,42 +6098,42 @@ window.__ModuleLoader__.load({
       '.cr-plan__slider { display: flex; align-items: center; gap: 10px; }',
       '.cr-plan__range { flex: 1 1 auto; min-width: 0; height: 4px;',
       '  -webkit-appearance: none; appearance: none; border-radius: 0;',
-      '  background: rgba(139, 0, 0, 0.448); outline: none; cursor: pointer; }',
+      '  background: color-mix(in srgb, var(--cr-accent) 45%, transparent); outline: none; cursor: pointer; }',
       '.cr-plan__range::-webkit-slider-thumb { -webkit-appearance: none;',
       '  appearance: none; width: 12px; height: 16px; border-radius: 0;',
-      '  background: #8b0000; border: 0; cursor: pointer;',
-      '  box-shadow: 0 0 8px rgba(139, 0, 0, 0.950); }',
+      '  background: var(--cr-accent); border: 0; cursor: pointer;',
+      '  box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent) 95%, transparent); }',
       '.cr-plan__range::-moz-range-thumb { width: 12px; height: 16px;',
-      '  border-radius: 0; background: #8b0000; border: 0;',
-      '  cursor: pointer; box-shadow: 0 0 8px rgba(139, 0, 0, 0.950); }',
+      '  border-radius: 0; background: var(--cr-accent); border: 0;',
+      '  cursor: pointer; box-shadow: 0 0 8px color-mix(in srgb, var(--cr-accent) 95%, transparent); }',
       '.cr-plan__value { flex: none; min-width: 42px; text-align: right;',
-      '  font-variant-numeric: tabular-nums; color: #a81818;',
+      '  font-variant-numeric: tabular-nums; color: var(--cr-accent-text);',
       '  font-size: 12px; font-weight: 600; }',
       /* Scroll-select control: a native select keeps the platform's scroll
          behaviour and keyboard support, restyled to the blood-red frame. */
       '.cr-plan__select { width: 100%; box-sizing: border-box;',
       '  padding: 7px 10px; border-radius: 0;',
-      '  border: 1px solid rgba(139, 0, 0, 0.758);',
-      '  background: rgba(139, 0, 0, 0.153); color: #fff4f6;',
+      '  border: 1px solid color-mix(in srgb, var(--cr-accent) 76%, transparent);',
+      '  background: color-mix(in srgb, var(--cr-accent) 15%, transparent); color: #fff4f6;',
       '  font-family: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;',
       '  font-size: 13px; line-height: 1.5; outline: none; cursor: pointer;',
       '  transition: border-color .15s, box-shadow .15s; }',
-      '.cr-plan__select:focus { border-color: #8b0000;',
-      '  box-shadow: 0 0 10px rgba(139, 0, 0, 0.758); }',
+      '.cr-plan__select:focus { border-color: var(--cr-accent);',
+      '  box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 76%, transparent); }',
       '.cr-plan__select option { background: #28080b; color: #fff4f6; }',
       /* Brand artwork choice: two thumbnail buttons, one per mark. */
       '.cr-plan__marks { display: flex; gap: 8px; }',
       '.cr-plan__mark { display: flex; align-items: center; gap: 9px;',
       '  flex: 1 1 0; min-width: 0; padding: 8px 10px; border-radius: 0;',
-      '  border: 1px solid rgba(139, 0, 0, 0.758);',
-      '  background: rgba(139, 0, 0, 0.153); color: #fff4f6;',
+      '  border: 1px solid color-mix(in srgb, var(--cr-accent) 76%, transparent);',
+      '  background: color-mix(in srgb, var(--cr-accent) 15%, transparent); color: #fff4f6;',
       '  font-family: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;',
       '  font-size: 12px; line-height: 1.4; text-align: left; cursor: pointer;',
       '  transition: border-color .15s, background .15s, box-shadow .15s; }',
-      '.cr-plan__mark:hover { border-color: #a81818; }',
-      '.cr-plan__mark[data-checked="1"] { border-color: #8b0000;',
-      '  background: rgba(139, 0, 0, 0.370);',
-      '  box-shadow: 0 0 10px rgba(139, 0, 0, 0.758); }',
+      '.cr-plan__mark:hover { border-color: var(--cr-accent-text); }',
+      '.cr-plan__mark[data-checked="1"] { border-color: var(--cr-accent);',
+      '  background: color-mix(in srgb, var(--cr-accent) 37%, transparent);',
+      '  box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 76%, transparent); }',
       '.cr-plan__mark:focus-visible { outline: 1px solid #8fb8de;',
       '  outline-offset: 2px; }',
       '.cr-plan__mark img { width: 24px; height: 24px; flex: none;',
@@ -5225,13 +6147,13 @@ window.__ModuleLoader__.load({
       '.cr-plan { max-width: 620px; gap: 14px; font-size: 13px;',
       '  color: var(--dsw-alias-label-primary); }',
       '.cr-plan__row { padding: 12px 14px; border: 1px solid var(--dsw-alias-border-l2);',
-      '  border-radius: 10px; background: linear-gradient(135deg, rgba(139, 0, 0, 0.14), rgba(10, 4, 6, 0.72));',
-      '  box-shadow: inset 0 0 18px rgba(139, 0, 0, 0.08); }',
+      '  border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--cr-accent) 14%, transparent), rgba(10, 4, 6, 0.72));',
+      '  box-shadow: inset 0 0 18px color-mix(in srgb, var(--cr-accent) 8%, transparent); }',
       '.cr-plan__row--first { border-top: 1px solid var(--dsw-alias-border-l2); }',
       '.cr-plan__section { gap: 11px; padding: 12px 14px;',
       '  border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px;',
-      '  background: linear-gradient(135deg, rgba(139, 0, 0, 0.14), rgba(10, 4, 6, 0.72));',
-      '  box-shadow: inset 0 0 18px rgba(139, 0, 0, 0.08); }',
+      '  background: linear-gradient(135deg, color-mix(in srgb, var(--cr-accent) 14%, transparent), rgba(10, 4, 6, 0.72));',
+      '  box-shadow: inset 0 0 18px color-mix(in srgb, var(--cr-accent) 8%, transparent); }',
       '.cr-plan .cr-plan__section-title { color: #fafafa;',
       '  font-size: 11px; font-weight: 600; letter-spacing: .08em; }',
       '.cr-plan__title { font-size: 13px; font-weight: 600; }',
@@ -5241,26 +6163,26 @@ window.__ModuleLoader__.load({
       '.cr-plan__group { gap: 5px; }',
       '.cr-plan__section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
       '.cr-plan__music-toggle { flex: none; min-width: 48px; height: 24px; padding: 0 8px;',
-      '  border: 1px solid var(--dsw-alias-border-l3); background: rgba(139,0,0,.18); color: #fff;',
+      '  border: 1px solid var(--dsw-alias-border-l3); background: color-mix(in srgb, var(--cr-accent) 18%, transparent); color: #fff;',
       '  font: inherit; font-size: 11px; cursor: pointer; }',
       '.cr-plan__music-toggle:hover, .cr-plan__music-toggle:focus-visible {',
-      '  background: rgba(139,0,0,.55); box-shadow: none; }',
+      '  background: color-mix(in srgb, var(--cr-accent) 55%, transparent); box-shadow: none; }',
       '.cr-plan__music-list { display: grid; gap: 6px; margin-top: 8px; }',
       '.cr-plan__music-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
       '.cr-plan__music-item { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12px; }',
       '.cr-plan__music-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-      '.cr-plan__music-preview { width: 28px; height: 24px; padding: 0; border: 1px solid var(--dsw-alias-border-l3); background: rgba(139,0,0,.18); color: #fff; cursor: pointer; }',
-      '.cr-plan__music-preview:hover { background: rgba(139,0,0,.55); }',
+      '.cr-plan__music-preview { width: 28px; height: 24px; padding: 0; border: 1px solid var(--dsw-alias-border-l3); background: color-mix(in srgb, var(--cr-accent) 18%, transparent); color: #fff; cursor: pointer; }',
+      '.cr-plan__music-preview:hover { background: color-mix(in srgb, var(--cr-accent) 55%, transparent); }',
       '.cr-plan__input, .cr-plan__select { border-color: var(--dsw-alias-border-l2);',
       '  border-radius: 8px; background: rgba(54, 12, 16, 0.82); padding: 6px 10px; }',
       '.cr-plan__input:focus, .cr-plan__select:focus {',
-      '  border-color: #8b0000; box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.18); }',
+      '  border-color: var(--cr-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cr-accent) 18%, transparent); }',
       '.cr-plan__toggle { border-color: var(--dsw-alias-border-l2);',
-      '  box-shadow: 0 0 10px rgba(139, 0, 0, 0.45); }',
+      '  box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 45%, transparent); }',
       '.cr-plan__mark { border-color: var(--dsw-alias-border-l2);',
       '  border-radius: 8px; background: rgba(54, 12, 16, 0.82); }',
-      '.cr-plan__mark[data-checked="1"] { border-color: #8b0000;',
-      '  background: rgba(139, 0, 0, 0.24); box-shadow: 0 0 10px rgba(139, 0, 0, 0.45); }',
+      '.cr-plan__mark[data-checked="1"] { border-color: var(--cr-accent);',
+      '  background: color-mix(in srgb, var(--cr-accent) 24%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--cr-accent) 45%, transparent); }',
       /* ---- Text colour tiers (this page only) -----------------------
          Three weights of secondary copy:
            · secondary text  #fafafa  labels, titles, section headings
@@ -5289,7 +6211,7 @@ window.__ModuleLoader__.load({
       '  padding: 7px 8px; color: #f4f4f4; background: rgba(35, 35, 35, .8);',
       '  border: 1px solid rgba(255, 255, 255, .16); font-size: 12px; }',
       '.cr-plan__upload::file-selector-button { margin-right: 8px; padding: 5px 9px;',
-      '  color: #fff; background: rgba(139, 0, 0, .48); border: 1px solid rgba(255, 68, 76, .72);',
+      '  color: #fff; background: color-mix(in srgb, var(--cr-accent) 48%, transparent); border: 1px solid color-mix(in srgb, var(--cr-accent-bright) 72%, transparent);',
       '  cursor: pointer; }',
       '.cr-plan__custom-list { display: grid; gap: 4px; margin-top: 6px; }',
       '.cr-plan__custom-row { display: flex; align-items: center; gap: 8px; min-width: 0;',
@@ -5297,12 +6219,35 @@ window.__ModuleLoader__.load({
       '.cr-plan__custom-name { flex: 1 1 auto; min-width: 0; overflow: hidden;',
       '  text-overflow: ellipsis; white-space: nowrap; }',
       '.cr-plan__custom-delete { flex: none; min-width: 42px; height: 22px; padding: 0 7px;',
-      '  border: 1px solid rgba(255, 68, 76, .58); background: rgba(139, 0, 0, .24);',
+      '  border: 1px solid color-mix(in srgb, var(--cr-accent-bright) 58%, transparent); background: color-mix(in srgb, var(--cr-accent) 24%, transparent);',
       '  color: #fff; font: inherit; font-size: 11px; cursor: pointer; }',
       '.cr-plan__custom-delete:hover, .cr-plan__custom-delete:focus-visible {',
-      '  background: rgba(218, 18, 28, .64); }',
+      '  background: color-mix(in srgb, var(--cr-accent-glow) 64%, transparent); }',
       '.cr-plan__section--visual { order: 2; }',
       '.cr-plan__section--copy { order: 3; }',
+      /* ---- Accent picker ---- */
+      '.cr-plan__accent { display: flex; align-items: center; gap: 10px; }',
+      '.cr-plan__accent-input { width: 46px; height: 30px; padding: 0;',
+      '  border: 1px solid var(--cr-accent); background: transparent;',
+      '  cursor: pointer; -webkit-appearance: none; appearance: none; }',
+      '.cr-plan__accent-input::-webkit-color-swatch-wrapper { padding: 2px; }',
+      '.cr-plan__accent-input::-webkit-color-swatch { border: 0; }',
+      '.cr-plan__accent-input::-moz-color-swatch { border: 0; }',
+      '.cr-plan__accent-value { font-family: "Consolas", monospace;',
+      '  font-size: 12px; letter-spacing: 0.06em; color: #ffc9cf;',
+      '  font-variant-numeric: tabular-nums; }',
+      '.cr-plan__swatches { display: flex; flex-wrap: wrap; gap: 7px;',
+      '  margin-top: 8px; }',
+      '.cr-plan__swatch { flex: none; width: 22px; height: 22px; min-width: 22px;',
+      '  padding: 0; box-sizing: border-box;',
+      '  border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 0;',
+      '  cursor: pointer; transition: box-shadow .15s, border-color .15s; }',
+      '.cr-plan__swatch:hover { border-color: #fff; }',
+      '.cr-plan__swatch[data-active="1"] { border-color: #fff;',
+      '  box-shadow: 0 0 0 2px var(--cr-accent), 0 0 10px var(--cr-accent); }',
+      '.cr-plan__swatch--reset { background: transparent;',
+      '  color: #ffc9cf; font-size: 13px; line-height: 1;',
+      '  border-style: dashed; }',
     ].join('\n');
 
     function PlanSettingsPage() {
@@ -5375,6 +6320,8 @@ window.__ModuleLoader__.load({
          artwork it installs so the choice needs no explanation. */
       const markNow = useBrandMarkVariant();
       const avatarNow = useAvatarId();
+      const accentNow = useAccent();
+      const panelColors = usePanelColors();
       const uploadCustomMedia = function (kind, event) {
         const file = event && event.target && event.target.files ? event.target.files[0] : null;
         if (event && event.target) event.target.value = '';
@@ -5537,6 +6484,142 @@ window.__ModuleLoader__.load({
           /* ---- Conversation background brightness ---- */
           h('div', { className: 'cr-plan__section cr-plan__section--visual' },
             h('div', { className: 'cr-plan__section-title' }, '\u89c6\u89c9'),
+
+            /* ---- Accent colour: every line and frame in the UI ---- */
+            h('div', { className: 'cr-plan__group' },
+              h('label', { className: 'cr-plan__label', htmlFor: 'cr-plan-accent' },
+                '\u754c\u9762\u7ebf\u6761\u989c\u8272'
+              ),
+              h('div', { className: 'cr-plan__accent' },
+                h('input', {
+                  id: 'cr-plan-accent',
+                  type: 'color',
+                  className: 'cr-plan__accent-input',
+                  value: accentNow,
+                  'aria-label': '\u754c\u9762\u7ebf\u6761\u989c\u8272',
+                  onChange: function (event) { setAccent(event.target.value); },
+                }),
+                h('span', { className: 'cr-plan__accent-value' }, accentNow.toUpperCase())
+              ),
+              h('div', { className: 'cr-plan__swatches' },
+                ACCENT_PRESETS.map(function (preset) {
+                  const active = preset.value === accentNow;
+                  return h('button', {
+                    key: preset.value,
+                    type: 'button',
+                    className: 'cr-plan__swatch',
+                    style: { background: preset.value },
+                    title: preset.label,
+                    'aria-label': preset.label,
+                    'aria-pressed': active,
+                    'data-active': active ? '1' : '0',
+                    onClick: function () { setAccent(preset.value); },
+                  });
+                }),
+                h('button', {
+                  type: 'button',
+                  className: 'cr-plan__swatch cr-plan__swatch--reset',
+                  title: '\u6062\u590d\u9ed8\u8ba4\u957f\u5f81\u7ea2',
+                  'aria-label': '\u6062\u590d\u9ed8\u8ba4\u989c\u8272',
+                  onClick: function () { setAccent(ACCENT_DEFAULT); },
+                }, '\u21ba')
+              ),
+              h('div', { className: 'cr-plan__note' },
+                '\u4f5c\u7528\u4e8e\u5de6\u680f\u3001\u4f1a\u8bdd\u533a\u3001\u53f3\u680f\u3001\u9876\u680f\u6587\u5b57\u4e0e\u95ea\u70c1\u5706\u70b9\u3001\u6309\u94ae\u8fb9\u6846\uff0c'
+                + '\u4ee5\u53ca\u65e5\u5386/\u5929\u6c14\u5361\u7247\u8fb9\u6846\u4e0e\u65e5\u671f\u6570\u5b57\u3001'
+                + '\u9876\u90e8\u8f6e\u64ad\u6570\u5b57\u548c\u64ad\u653e\u5668\u5e95\u8272\u3002'
+              )
+            ),
+
+            /* ---- System monitor readout ---- */
+            h('div', { className: 'cr-plan__group' },
+              h('label', { className: 'cr-plan__label', htmlFor: 'cr-plan-monitor-tone' },
+                '\u76d1\u63a7\u5361\u7247\u989c\u8272'
+              ),
+              h('div', { className: 'cr-plan__accent' },
+                h('input', {
+                  id: 'cr-plan-monitor-tone',
+                  type: 'color',
+                  className: 'cr-plan__accent-input',
+                  value: panelColors.monitorTone,
+                  'aria-label': '\u76d1\u63a7\u5361\u7247\u989c\u8272',
+                  onChange: function (event) { setMonitorTone(event.target.value); },
+                }),
+                h('span', { className: 'cr-plan__accent-value' }, panelColors.monitorTone.toUpperCase())
+              ),
+              h('div', { className: 'cr-plan__swatches' },
+                MONITOR_TONE_PRESETS.map(function (preset) {
+                  const active = preset.value === panelColors.monitorTone;
+                  return h('button', {
+                    key: preset.value,
+                    type: 'button',
+                    className: 'cr-plan__swatch',
+                    style: { background: preset.value },
+                    title: preset.label,
+                    'aria-label': preset.label,
+                    'aria-pressed': active,
+                    'data-active': active ? '1' : '0',
+                    onClick: function () { setMonitorTone(preset.value); },
+                  });
+                }),
+                h('button', {
+                  type: 'button',
+                  className: 'cr-plan__swatch cr-plan__swatch--reset',
+                  title: '\u6062\u590d\u9ed8\u8ba4',
+                  'aria-label': '\u6062\u590d\u9ed8\u8ba4\u76d1\u63a7\u989c\u8272',
+                  onClick: function () { setMonitorTone(MONITOR_TONE_DEFAULT); },
+                }, '\u21ba')
+              ),
+              h('div', { className: 'cr-plan__note' },
+                '\u6444\u50cf\u5934\u56fe\u6807\u3001CPU/\u5185\u5b58\u8fdb\u5ea6\u6761\u3001\u4ee5\u53ca\u4e0b\u65b9\u7f51\u7edc\u901f\u7387\u6570\u5b57\u3002'
+              )
+            ),
+
+            /* ---- Fake feature cards ---- */
+            h('div', { className: 'cr-plan__group' },
+              h('label', { className: 'cr-plan__label', htmlFor: 'cr-plan-fake-tone' },
+                '\u5047\u529f\u80fd\u5361\u7247\u989c\u8272'
+              ),
+              h('div', { className: 'cr-plan__accent' },
+                h('input', {
+                  id: 'cr-plan-fake-tone',
+                  type: 'color',
+                  className: 'cr-plan__accent-input',
+                  value: panelColors.fakeTone,
+                  'aria-label': '\u5047\u529f\u80fd\u5361\u7247\u989c\u8272',
+                  onChange: function (event) { setFakeTone(event.target.value); },
+                }),
+                h('span', { className: 'cr-plan__accent-value' }, panelColors.fakeTone.toUpperCase())
+              ),
+              h('div', { className: 'cr-plan__swatches' },
+                FAKE_TONE_PRESETS.map(function (preset) {
+                  const active = preset.value === panelColors.fakeTone;
+                  return h('button', {
+                    key: preset.value,
+                    type: 'button',
+                    className: 'cr-plan__swatch',
+                    style: { background: preset.value },
+                    title: preset.label,
+                    'aria-label': preset.label,
+                    'aria-pressed': active,
+                    'data-active': active ? '1' : '0',
+                    onClick: function () { setFakeTone(preset.value); },
+                  });
+                }),
+                h('button', {
+                  type: 'button',
+                  className: 'cr-plan__swatch cr-plan__swatch--reset',
+                  title: '\u6062\u590d\u9ed8\u8ba4',
+                  'aria-label': '\u6062\u590d\u9ed8\u8ba4\u5047\u529f\u80fd\u5361\u7247\u989c\u8272',
+                  onClick: function () { setFakeTone(FAKE_TONE_DEFAULT); },
+                }, '\u21ba')
+              ),
+              h('div', { className: 'cr-plan__note' },
+                '\u5361\u7247\u8fb9\u6846\u4e0e\u5e95\u8272\u3001\u6807\u9898\u680f\u3001\u65e5\u5fd7\u65f6\u95f4\u6233\u3001'
+                + '\u4efb\u52a1\u8fdb\u5ea6\u6761\u4e0e\u767e\u5206\u6bd4\u6570\u5b57\u3002'
+              )
+            ),
+
             h('div', { className: 'cr-plan__group' },
               h('label', { className: 'cr-plan__label', htmlFor: 'cr-plan-avatar' },
                 '\u4eba\u7269\u5934\u50cf'
@@ -5801,16 +6884,21 @@ window.__ModuleLoader__.load({
         const armTheme = function () {
           /* Guard: a second registration for the same id throws. */
           if (themeDisposers.length > 0) return;
+          /* Exactly ONE token is registered: the sidebar's own fill. In the
+             original design the left column's darker plate came from this
+             token alone, while pages used the shell's --dsw-alias-bg-base.
+
+             Registering the whole TOKENS table was the original mistake: it
+             also re-pointed bg-base, layer fills, borders and state colours,
+             all of which are shared by every page — so the sidebar and the
+             pages could never look different, and other plugins' controls lost
+             their contrast. One token keeps the two separate. */
           const layer = ctx.theme.register({
             id: THEME_ID,
             colorScheme: 'dark',
-            tokens: Object.keys(TOKENS).reduce(function (acc, key) {
-              acc[key] = TOKENS[key].dark;
-              return acc;
-            }, {}),
+            tokens: { '--dsw-specific-sidebar-fill': '#0a0a0a' },
           });
-          const override = ctx.theme.overrideTokens('dsh-cyber-red-ui', TOKENS);
-          themeDisposers = [layer, override];
+          themeDisposers = [layer];
         };
         const disarmTheme = function () {
           for (const d of themeDisposers) { try { d(); } catch (e) { /* already gone */ } }
@@ -5931,6 +7019,7 @@ window.__ModuleLoader__.load({
           root.removeAttribute('data-cr-rail-open');
           root.removeAttribute('data-cr-stats-capturing');
           root.style.removeProperty('--cr-rail-w');
+          root.style.removeProperty('--cr-rail-top');
           root.style.removeProperty('--cr-rail-head');
           root.style.removeProperty('--cr-rail-head-fallback');
           const frame = document.querySelector('[data-cr-frame]');
@@ -5967,6 +7056,8 @@ window.__ModuleLoader__.load({
         restoreTopText();
         restoreFormText();
         restoreChatBrightness();
+        restoreAccent();
+        restorePanelColors();
         restoreCrScan();
         restoreChatBackground();
         restoreMusicState();
@@ -6442,6 +7533,7 @@ window.__ModuleLoader__.load({
           let source = '';
           let failedSource = '';
           let retryTimer = 0;
+          let revealTimer = 0;
           let disposed = false;
           const active = function () { return isVideoChatBackground(); };
           const draw = function () {
@@ -6467,10 +7559,13 @@ window.__ModuleLoader__.load({
             }
           };
           const reveal = function () {
-            if (!video || !active() || video.readyState < 2) return;
+            /* Guard first: this function re-schedules itself, and the timer it
+               creates was never tracked, so an unmount mid-reveal could still
+               run one more holdFrame()/draw() against a detached canvas. */
+            if (disposed || !video || !active() || video.readyState < 2) return;
             if (video.duration > 0.08 && video.currentTime < 0.06) {
               holdFrame();
-              window.setTimeout(reveal, 50);
+              revealTimer = window.setTimeout(reveal, 50);
               return;
             }
             draw();
@@ -6537,21 +7632,45 @@ window.__ModuleLoader__.load({
           };
           const sync = function () {
             if (disposed) return;
-            const nextHost = document.querySelector('[data-phase]');
             const enabled = active();
+            /* Cheap early exit when the wallpaper is off: otherwise every DOM
+               mutation in the whole app caused a [data-phase] query plus
+               unconditional attribute writes here. */
+            if (!enabled) {
+              if (host) {
+                document.documentElement.removeAttribute('data-cr-chat-video-bg');
+                host.removeAttribute('data-cr-video-host');
+                host.removeAttribute('data-cr-video-frame-fallback');
+                if (video) {
+                  video.pause();
+                  /* Remove, do not merely hide. Leaving the layers in the DOM
+                     relied on the html:not([data-cr-chat-video-bg]) rule to
+                     hide them, but any pass that re-set the attribute (or a
+                     missed attribute removal) left an opaque video/canvas on
+                     top of the still wallpaper — which is what made every
+                     still image and the "no background" option look broken
+                     while the video layers were still mounted. */
+                  video.remove();
+                  video = null;
+                }
+                if (frame) { frame.remove(); frame = null; }
+                if (timer) { window.clearInterval(timer); timer = 0; }
+                host = null;
+              }
+              return;
+            }
+            const nextHost = document.querySelector('[data-phase]');
             if (!nextHost) return;
             ensure();
             if (host && host !== nextHost) host.removeAttribute('data-cr-video-host');
             host = nextHost;
-            host.setAttribute('data-cr-video-host', '');
+            /* Idempotent: re-setting an attribute that is already present still
+               counts as a mutation and re-wakes the observer. */
+            if (!host.hasAttribute('data-cr-video-host')) {
+              host.setAttribute('data-cr-video-host', '');
+            }
             if (video.parentElement !== host) host.insertBefore(video, host.firstChild);
             if (frame.parentElement !== host) host.insertBefore(frame, video.nextSibling);
-            if (!enabled) {
-              document.documentElement.removeAttribute('data-cr-chat-video-bg');
-              video.pause();
-              if (timer) { window.clearInterval(timer); timer = 0; }
-              return;
-            }
             const nextSource = getChatBackgroundVideoUrl();
             if (failedSource && failedSource === nextSource) {
               document.documentElement.removeAttribute('data-cr-chat-video-bg');
@@ -6572,6 +7691,12 @@ window.__ModuleLoader__.load({
           };
           chatBackgroundRuntimeSync = sync;
           sync();
+          /* subtree MUST stay: the host is nested several levels below body, so
+             a childList-only observer never saw the <video>/<canvas> the plugin
+             inserts into it, nor the shell replacing the column on a route
+             change. Dropping it to "save work" broke video playback and the
+             attribute bookkeeping around it. sync() now returns early when no
+             video wallpaper is selected, which is where the saving comes from. */
           observer = new MutationObserver(sync);
           observer.observe(document.body, { childList: true, subtree: true });
           return function () {
@@ -6579,6 +7704,7 @@ window.__ModuleLoader__.load({
             if (observer) observer.disconnect();
             if (timer) window.clearInterval(timer);
             if (retryTimer) window.clearTimeout(retryTimer);
+            if (revealTimer) window.clearTimeout(revealTimer);
             if (video) { video.pause(); video.remove(); }
             if (frame) frame.remove();
             if (host) {
@@ -6853,8 +7979,23 @@ window.__ModuleLoader__.load({
           } catch (e) { return false; }
         };
 
+        /* Setting surfaces are re-detected once per pass by
+           syncSettingsSurfaces(). Caching the answer here keeps the hot loops
+           from running el.closest() for every element in the document: on a
+           normal conversation screen there are NO settings roots, so every one
+           of those ancestor walks was pure waste. */
+        let settingsRootCache = null;
+
         const isSettingsSurface = function (el) {
           if (!el || el.nodeType !== 1) return false;
+          if (settingsRootCache !== null) {
+            /* Fast path: nothing on this screen is a settings surface. */
+            if (settingsRootCache.size === 0) return false;
+            for (const root of settingsRootCache) {
+              if (root === el || root.contains(el)) return true;
+            }
+            return false;
+          }
           return !!el.closest(SETTINGS_ROOT_SELECTOR);
         };
 
@@ -6883,6 +8024,9 @@ window.__ModuleLoader__.load({
               el.style.removeProperty('--cr-edge-top');
             }
           }
+          /* Publish for this pass: isSettingsSurface() consults this instead of
+             walking ancestors for every element it is asked about. */
+          settingsRootCache = roots;
         };
 
         const isMainSidebarElement = function (el) {
@@ -6918,9 +8062,10 @@ window.__ModuleLoader__.load({
              tag() so the pass can read it, and updated by pointer events. */
           let hoveredRow = null;
 
-          /* The row directly below the native 40px caption strip. The
-             vertical divider starts on this exact row as the horizontal rule. */
-          const RULE_Y = 40;
+          /* The row the horizontal rule occupies, in viewport pixels. The
+             vertical divider starts on this exact row so the two meet with
+             neither an overshoot above nor a gap below. */
+          const RULE_Y = 45;
 
           /* `top` on the pseudo-element is measured from the HOST's own top
              edge, not from the viewport, so each host gets its own offset.
@@ -7769,12 +8914,14 @@ window.__ModuleLoader__.load({
 
         /* React to the splash lifecycle. */
 
-        /* 1. The splash's own completion event. */
-        window.addEventListener('dsh-startup:done', function () {
+        /* 1. The splash's own completion event. Named so it can be removed:
+           an anonymous listener here leaked one entry on window per mount. */
+        const onStartupDone = function () {
           /* finish() removed the root synchronously just before dispatching,
              so the state is already "revealed" here. */
           applyGate(planEnabled);
-        });
+        };
+        window.addEventListener('dsh-startup:done', onStartupDone);
 
         /* 2. Any DOM change that adds or removes a splash. This catches the
               first boot teardown and every replay("立即预览") without needing
@@ -7797,11 +8944,91 @@ window.__ModuleLoader__.load({
           return function () {
             gateObserver.disconnect();
             if (gateTimer) window.clearInterval(gateTimer);
+            window.removeEventListener('dsh-startup:done', onStartupDone);
           };
         });
 
         /* Initial state. */
         syncGate();
+
+        /* ---- Diagnostic sampler --------------------------------------
+           The conversation-area flicker cannot be seen from outside the
+           renderer, and driving the app window's DevTools by hand is
+           impractical for the person using it. This sampler records the
+           plugin's own view of the DOM — how many marks exist, which
+           top-level attributes exist, how many theme layers are mounted —
+           plus a count of attribute writes made by anything, once a second.
+           The server half appends each line to ~/.dsh/cyber-red-ui-diag.ndjson.
+
+           It only ever runs while the plan is active, sends counts and
+           attribute names (never message text), and stops on dispose. */
+        const startDiagSampler = function () {
+          let seq = 0;
+          /* Attribute-churn observer removed: it watched every attribute on
+             every element in the document and was pure diagnostics. */
+          const send = function () {
+            seq += 1;
+            const html = document.documentElement;
+            let body = null;
+            try {
+              body = JSON.stringify({
+                seq: seq,
+                at: Date.now(),
+                plan: typeof planEnabled === 'boolean' ? planEnabled : null,
+                chatBg: chatBackgroundId,
+                /* Wallpaper diagnostics: the variable the theme published and
+                   what it resolved to on the column. If wallpaperVar is empty
+                   the still image is genuinely not being set; if it is set but
+                   columnBg lacks a url(), a CSS rule is overriding it. */
+                wallpaperVar: (function () {
+                  try {
+                    const v = document.documentElement.style.getPropertyValue('--cr-chat-wallpaper');
+                    return v ? v.slice(0, 40) : '';
+                  } catch (e) { return 'ERR'; }
+                })(),
+                columnBg: (function () {
+                  try {
+                    const cols = document.querySelectorAll('[data-phase]');
+                    if (!cols.length) return 'no-column';
+                    const img = getComputedStyle(cols[0]).backgroundImage || '';
+                    /* Report WHETHER the wallpaper layer is present, not a
+                       truncated string: "has-url" is the fact that matters. */
+                    return (img.includes('url(') ? 'has-url|' : 'no-url|')
+                      + (img.includes('linear-gradient') ? 'veil' : 'no-veil')
+                      + '|len=' + img.length;
+                  } catch (e) { return 'ERR'; }
+                })(),
+                videoLayers: document.querySelectorAll('[data-cr-chat-video-layer], [data-cr-chat-video-frame]').length,
+                videoBg: html.hasAttribute('data-cr-chat-video-bg'),
+                styleTags: document.querySelectorAll('style[data-plugin="dsh-cyber-red-ui"]').length,
+                convo: document.querySelectorAll('[data-cr-convo]').length,
+                panel: document.querySelectorAll('[data-cr-panel]').length,
+              });
+            } catch (e) {
+              return;
+            }
+            try {
+              fetch('/cyber-red-ui/diag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: body,
+                keepalive: true,
+              }).catch(function () { /* listener gone */ });
+            } catch (e) { /* fetch unavailable */ }
+          };
+
+          /* Diagnostics only: 5s is plenty for a state snapshot, and it no
+             longer competes with typing/streaming for main-thread time. */
+          const timer = window.setInterval(send, 5000);
+          /* Kept so dispose can cancel it: an unsaved one-shot still fires
+             after unmount and POSTs to a listener that is already gone. */
+          const bootTimer = window.setTimeout(send, 800);
+          return function () {
+            if (timer) window.clearInterval(timer);
+            if (bootTimer) window.clearTimeout(bootTimer);
+          };
+        };
+        try { ctx.effect(startDiagSampler); } catch (e) { /* diagnostics only */ }
       },
     };
   },
