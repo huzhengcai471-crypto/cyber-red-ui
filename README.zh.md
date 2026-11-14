@@ -7,12 +7,14 @@
 ## 从 GitHub 安装
 
 ```powershell
-dsh plugin --profile desktop add github:huzhengcai471-crypto/cyber-red-ui
+curl.exe -L -o "$env:USERPROFILE\Downloads\dsh-cyber-red-ui-1.3.0.tgz" https://github.com/huzhengcai471-crypto/cyber-red-ui/releases/download/v1.3.0/dsh-cyber-red-ui-1.3.0.tgz
+dsh plugin --profile desktop add file:C:/Users/me/Downloads/dsh-cyber-red-ui-1.3.0.tgz
 ```
 
 然后在 DSH profile 的 `dsh.profile.bundles` 中加入 `dsh-cyber-red-ui`，重启 DSH。
+SHA256 校验值、国内镜像和逐文件手动安装的完整流程见 [README.md](README.md)。
 
-本项目的媒体、头像和字体资源都随安装包分发，插件运行不依赖开发机的绝对路径。GitHub Release 提供完整源码和可直接安装的 `dsh-cyber-red-ui-1.2.0.tgz`。
+本项目的媒体、头像和字体资源都随安装包分发，插件运行不依赖开发机的绝对路径。GitHub Release 提供完整源码和可直接安装的 `dsh-cyber-red-ui-1.3.0.tgz`。
 
 ## 关于 Git LFS
 
@@ -31,5 +33,5 @@ git lfs install
 git lfs pull
 ```
 
-**安装插件不需要克隆仓库。** Release 里的 `dsh-cyber-red-ui-1.2.0.tgz`
+**安装插件不需要克隆仓库。** Release 里的 `dsh-cyber-red-ui-1.3.0.tgz`
 本身就包含真实媒体文件，这是推荐的安装方式（见上文）。只有在需要开发时才需要克隆。
